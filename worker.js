@@ -62,7 +62,7 @@ async function refreshIfNeeded(env, id, session) {
 
 // --- spam scoring, ported from SKILL.md's rules ---
 const URGENCY = /\b(act now|expires? today|verify your account|suspend|limited time|click here|claim now|final notice)\b/i;
-const KNOWN_SERVICES = /appleid\.apple\.com|apple\.com|itunesconnect|vercel\.com|sentry\.io|github\.com|stripe\.com|supabase\.(io|com)|cloudflare\.com/i;
+const KNOWN_SERVICES = /^(?:[a-z0-9-]+\.)*(?:apple\.com|vercel\.com|sentry\.io|github\.com|stripe\.com|supabase\.(?:io|com)|cloudflare\.com)$/i;
 
 function domainOf(addr) {
   const m = addr.match(/@([^ >]+)/);
@@ -134,8 +134,8 @@ async function gmailList(session) {
 async function gmailAction(session, { messageId, action, listUnsubscribe, oneClick }) {
   if (action === "unsubscribe") {
     const ok = listUnsubscribe ? await unsubscribe(listUnsubscribe, oneClick) : false;
-    await gmailFetch(session, `/messages/${messageId}/modify`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ removeLabelIds: ["INBOX"] }) });
-    return { unsubscribed: ok, archived: true };
+    const r = await gmailFetch(session, `/messages/${messageId}/modify`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ removeLabelIds: ["INBOX"] }) });
+    return { unsubscribed: ok, archived: r.ok };
   }
   if (action === "archive") {
     const r = await gmailFetch(session, `/messages/${messageId}/modify`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ removeLabelIds: ["INBOX"] }) });
