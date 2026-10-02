@@ -305,8 +305,8 @@ async function icloudAction(session, { messageId, action, listUnsubscribe, oneCl
     await client.cmd("SELECT INBOX");
     if (action === "unsubscribe") {
       const ok = listUnsubscribe ? await unsubscribe(listUnsubscribe, oneClick) : false;
-      await client.cmd(`UID MOVE ${messageId} Archive`).catch(() => {});
-      return { unsubscribed: ok, archived: true };
+      const archived = await client.cmd(`UID MOVE ${messageId} Archive`).then(() => true, () => false);
+      return { unsubscribed: ok, archived };
     }
     if (action === "archive") {
       await client.cmd(`UID MOVE ${messageId} Archive`);

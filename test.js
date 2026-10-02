@@ -27,3 +27,22 @@ for (archiveOk of [false, true]) {
   assert.equal(result.unsubscribed, false);
 }
 console.log('sender scoring and archive results: ok');
+
+for (const archived of [false, true]) {
+  let closed = false;
+  const client = {
+    async cmd(command) {
+      if (command.startsWith('UID MOVE') && !archived) throw new Error('move rejected');
+    },
+    async quit() { closed = true; },
+  };
+  const action = runInNewContext(
+    source + '\n;imapLogin = async () => client; icloudAction;',
+    { client },
+  );
+  const result = await action({}, { messageId: '1', action: 'unsubscribe' });
+  assert.equal(result.archived, archived);
+  assert.equal(result.unsubscribed, false);
+  assert.equal(closed, true);
+}
+console.log('iCloud archive results and connection cleanup: ok');
