@@ -90,8 +90,8 @@ function scoreMessage({ from, replyTo, subject, snippet, listUnsubscribe }) {
 // Mail from real people has no folder and stays in the inbox. Everything else gets filed, never deleted.
 const FOLDER_PARENT = "Hagaki";
 const FOLDERS = ["Receipts", "Travel", "Dev", "Newsletters", "Social", "Promotions", "Junk"];
-const DEV = /(?:github|gitlab|vercel|sentry|cloudflare|supabase|netlify|npmjs|circleci|atlassian|linear|appstoreconnect|itunesconnect|developer\.apple)\./i;
-const DEV_WORDS = /\b(build (?:failed|succeeded)|deploy(?:ment)?|pull request|workflow run|app store connect|testflight|new sign-in)\b/i;
+const DEV = /(?:github|gitlab|vercel|sentry|cloudflare|supabase|netlify|npmjs|circleci|atlassian|linear|appstoreconnect|itunesconnect|developer\.apple|testflight|twilio|kaggle|apify|getgitguardian)\./i;
+const DEV_WORDS = /\b(build (?:failed|succeeded)|deploy(?:ment)?|pull request|workflow run|app store connect|testflight|new sign-in|your [^.]{1,60} submission|uploaded build|available to test|invited you to test)\b/i;
 const RECEIPT = /\b(receipts?|invoices?|your order|order confirmation|payment|statement|billing|renewal|charged|bill is ready)\b/i;
 const PAYMENTS = /(?:stripe|paypal|square|squareup|shopify|venmo)\./i;
 const TRAVEL = /\b(flights?|boarding pass|itinerary|booking confirmation|reservation|hotel|check-in)\b/i;
@@ -457,6 +457,24 @@ function demoList() {
   });
 }
 
+// --- LLM pass: whatever the rules left in the inbox gets one batched Workers AI call ---
+// ponytail: one call, first 30 leftovers, fails open (rules result stands). Add paging if inboxes outgrow it.
+const LLM_MODEL = "@cf/meta/llama-3.1-8b-instruct";
+async function llmRefine(env, items) {
+  const left = items.filter((m) => m.category === "Inbox").slice(0, 30);
+  if (!env.AI || !left.length) return items;
+  const list = left.map((m, i) => `${i}. from: ${m.from} | subject: ${m.subject} | ${(m.snippet || "").slice(0, 120)}`).join("\n");
+  const prompt = `Sort each email into exactly one of: ${FOLDERS.join(", ")}, Inbox.
+Inbox = a real person writing to the user personally (friends, family, a human reply). Cold sales outreach, growth-hack pitches, "saw your app" spam = Junk. Promo from a store = Promotions. Product or service system notices (support tickets, badges, 2FA) = Dev. Reply with only a JSON array like [{"i":0,"c":"Junk"}].
+${list}`;
+  try {
+    const r = await env.AI.run(LLM_MODEL, { messages: [{ role: "user", content: prompt }], max_tokens: 800 });
+    const picks = JSON.parse((String(r.response).match(/\[[\s\S]*\]/) || ["[]"])[0]);
+    for (const { i, c } of picks) if (left[i] && FOLDERS.includes(c)) { left[i].category = c; left[i].llm = true; }
+  } catch (e) { /* rules result stands */ }
+  return items;
+}
+
 // ======================= dispatch =======================
 function listMessages(session) {
   if (session.provider === "demo") return demoList();
@@ -603,7 +621,7 @@ export default {
       session = await refreshIfNeeded(env, id, session);
       if (!session) return new Response("session expired", { status: 401 });
       try {
-        return Response.json(await listMessages(session));
+        return Response.json(await llmRefine(env, await listMessages(session)));
       } catch (e) {
         return new Response(String(e), { status: 502 });
       }

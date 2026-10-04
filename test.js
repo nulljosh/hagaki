@@ -75,6 +75,9 @@ console.log('iCloud archive results and connection cleanup: ok');
   assert.equal(mail('Shop <a@shop.example>', '50% off today', { listUnsubscribe: '<https://x>' }), 'Promotions');
   assert.equal(mail('Letter <a@weekly.example>', 'Issue 42', { listUnsubscribe: '<https://x>' }), 'Newsletters');
   assert.equal(mail('Sam <sam@example.org>', 'Lunch Thursday?'), 'Inbox');
+  assert.equal(mail('App Store Connect <no_reply@email.apple.com>', 'Review of your Talli (macOS) submission is complete.'), 'Dev');
+  assert.equal(mail('TestFlight <testflight_no_reply@email.apple.com>', 'Bookrank 1.1.0 for iOS is now available to test.'), 'Dev');
+  assert.equal(mail('GitGuardian <security@getgitguardian.com>', 'Password exposed on GitHub'), 'Dev');
   assert.equal(mail('Bad <a@bad.example>', 'x', { isJunk: true }), 'Junk');
   assert.deepEqual(JSON.parse(JSON.stringify(ctx.groupByFolder([{ messageId: 'a', category: 'Dev' }, { messageId: 'b', category: 'Inbox' }, { messageId: 'c', category: 'Dev' }]))), { Dev: ['a', 'c'] });
   const result = await ctx.gmailOrganize({ access_token: 't' }, [{ messageId: 'm1', category: 'Receipts' }, { messageId: 'm2', category: 'Travel' }, { messageId: 'm3', category: 'Inbox' }]);
@@ -98,3 +101,15 @@ console.log('smart folders: ok');
   assert.equal(cmds.at(-1), 'QUIT');
 }
 console.log('iCloud smart folders: ok');
+
+// LLM pass: only leftovers move, bad output and missing binding leave the rules result alone
+{
+  const ctx = runInNewContext(source + '\n;({ llmRefine });');
+  const mk = () => [{ category: 'Inbox', from: 'a', subject: 'x' }, { category: 'Dev', from: 'b', subject: 'y' }, { category: 'Inbox', from: 'c', subject: 'z' }];
+  const ai = (response) => ({ AI: { run: async () => ({ response }) } });
+  const out = await ctx.llmRefine(ai('sure: [{"i":0,"c":"Junk"},{"i":1,"c":"Bogus"}]'), mk());
+  assert.deepEqual(out.map(m => m.category), ['Junk', 'Dev', 'Inbox']);
+  assert.deepEqual((await ctx.llmRefine(ai('nonsense'), mk())).map(m => m.category), ['Inbox', 'Dev', 'Inbox']);
+  assert.deepEqual((await ctx.llmRefine({}, mk())).map(m => m.category), ['Inbox', 'Dev', 'Inbox']);
+}
+console.log('llm pass: ok');
