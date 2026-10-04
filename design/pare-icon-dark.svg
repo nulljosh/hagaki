@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#1c1c1e"/>
+  <defs><clipPath id="pear"><path d="M512 300
+      C 568 300 610 342 612 398
+      C 614 448 638 478 670 518
+      C 710 568 726 620 722 670
+      C 714 792 622 884 512 884
+      C 402 884 310 792 302 670
+      C 298 620 314 568 354 518
+      C 386 478 410 448 412 398
+      C 414 342 456 300 512 300 Z"/></clipPath></defs>
+  <g transform="rotate(-8 512 590)">
+    <path fill="#e0703f" d="M512 300
+      C 568 300 610 342 612 398
+      C 614 448 638 478 670 518
+      C 710 568 726 620 722 670
+      C 714 792 622 884 512 884
+      C 402 884 310 792 302 670
+      C 298 620 314 568 354 518
+      C 386 478 410 448 412 398
+      C 414 342 456 300 512 300 Z"/>
+    <path fill="none" stroke="#e0703f" stroke-width="34" stroke-linecap="round" d="M512 318 C 512 272 516 246 524 228"/>
+    <path fill="#e0703f" d="M520 236 C 532 196 560 176 600 166 C 632 158 666 158 694 166 C 672 234 596 264 520 236 Z"/>
+      <!-- a small envelope cut into the belly: the pear carries a letter -->
+    <g fill="none" stroke="#1c1c1e" stroke-width="26" stroke-linejoin="round" stroke-linecap="round">
+      <rect x="402" y="594" width="220" height="150" rx="22"/>
+      <path d="M408 604 L512 682 L616 604"/>
+    </g>
+  </g>
+</svg>
