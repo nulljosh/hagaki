@@ -86,6 +86,43 @@ function scoreMessage({ from, replyTo, subject, snippet, listUnsubscribe }) {
   return { score, reasons, isJunk: score >= 2 && !KNOWN_SERVICES.test(fromDomain) };
 }
 
+// --- smart folders: seven boxes, like the seven red boxes on a Japanese postcard ---
+// Mail from real people has no folder and stays in the inbox. Everything else gets filed, never deleted.
+const FOLDER_PARENT = "Hagaki";
+const FOLDERS = ["Receipts", "Travel", "Dev", "Newsletters", "Social", "Promotions", "Junk"];
+const DEV = /(?:github|gitlab|vercel|sentry|cloudflare|supabase|netlify|npmjs|circleci|atlassian|linear|appstoreconnect|itunesconnect|developer\.apple)\./i;
+const DEV_WORDS = /\b(build (?:failed|succeeded)|deploy(?:ment)?|pull request|workflow run|app store connect|testflight|new sign-in)\b/i;
+const RECEIPT = /\b(receipts?|invoices?|your order|order confirmation|payment|statement|billing|renewal|charged|bill is ready)\b/i;
+const PAYMENTS = /(?:stripe|paypal|square|squareup|shopify|venmo)\./i;
+const TRAVEL = /\b(flights?|boarding pass|itinerary|booking confirmation|reservation|hotel|check-in)\b/i;
+const TRAVEL_SITES = /(?:airbnb|expedia|booking|aircanada|westjet|kayak|tripadvisor|airlines?)\./i;
+const SOCIAL = /(?:linkedin|facebookmail|twitter|instagram|reddit|redditmail|discord|pinterest|tiktok|snapchat|nextdoor)\./i;
+const PROMO_WORDS = /\b(sale|\d+% off|deals?|offers?|coupon|discount|free shipping|limited time)\b/i;
+const LETTER_SITES = /(?:substack|medium|beehiiv|mailchimp|convertkit|buttondown)\./i;
+const LETTER_WORDS = /\b(newsletter|digest|weekly|monthly|issue #?\d+)\b/i;
+
+function categorize({ from, subject, snippet, listUnsubscribe, isJunk, labelIds = [] }) {
+  if (isJunk) return "Junk";
+  const d = domainOf(from) + ".";
+  const text = `${subject || ""} ${snippet || ""}`;
+  if (DEV.test(d) || DEV_WORDS.test(subject || "")) return "Dev";
+  if (PAYMENTS.test(d) || RECEIPT.test(subject || "")) return "Receipts";
+  if (TRAVEL_SITES.test(d) || TRAVEL.test(subject || "")) return "Travel";
+  if (SOCIAL.test(d) || labelIds.includes("CATEGORY_SOCIAL")) return "Social";
+  if (labelIds.includes("CATEGORY_PROMOTIONS") || (listUnsubscribe && PROMO_WORDS.test(text))) return "Promotions";
+  if (LETTER_SITES.test(d) || LETTER_WORDS.test(text) || listUnsubscribe || labelIds.includes("CATEGORY_UPDATES") || labelIds.includes("CATEGORY_FORUMS")) return "Newsletters";
+  return "Inbox";
+}
+
+// group [{ messageId, category }] by folder, dropping anything that is not one of the seven
+function groupByFolder(items) {
+  const groups = {};
+  for (const { messageId, category } of items || []) {
+    if (messageId && FOLDERS.includes(category)) (groups[category] ||= []).push(String(messageId));
+  }
+  return groups;
+}
+
 function header(headers, name) {
   const h = headers.find((h) => h.name.toLowerCase() === name.toLowerCase());
   return h ? h.value : "";
@@ -126,7 +163,8 @@ async function gmailList(session) {
     const oneClick = /one-click/i.test(header(headers, "List-Unsubscribe-Post"));
     const snippet = msg.snippet || "";
     const { score, reasons, isJunk } = scoreMessage({ from, replyTo, subject, snippet, listUnsubscribe });
-    out.push({ id: m.id, from, subject, snippet, score, reasons, isJunk, listUnsubscribe, oneClick });
+    const category = categorize({ from, subject, snippet, listUnsubscribe, isJunk, labelIds: msg.labelIds || [] });
+    out.push({ id: m.id, from, subject, snippet, score, reasons, isJunk, category, listUnsubscribe, oneClick });
   }
   return out;
 }
@@ -146,6 +184,29 @@ async function gmailAction(session, { messageId, action, listUnsubscribe, oneCli
     return { deleted: r.ok };
   }
   return { error: "unknown action" };
+}
+
+// Files messages into Hagaki/<Folder> labels and takes them out of the inbox. Nothing is trashed.
+async function gmailOrganize(session, items) {
+  const groups = groupByFolder(items);
+  const organized = {};
+  let failed = 0;
+  if (!Object.keys(groups).length) return { organized, failed };
+  const json = { "Content-Type": "application/json" };
+  const listRes = await gmailFetch(session, "/labels");
+  if (!listRes.ok) throw new Error(`gmail labels failed: ${listRes.status}`);
+  const labels = Object.fromEntries(((await listRes.json()).labels || []).map((l) => [l.name, l.id]));
+  for (const [folder, ids] of Object.entries(groups)) {
+    const name = `${FOLDER_PARENT}/${folder}`;
+    if (!labels[name]) {
+      const r = await gmailFetch(session, "/labels", { method: "POST", headers: json, body: JSON.stringify({ name, labelListVisibility: "labelShow", messageListVisibility: "show" }) });
+      if (r.ok) labels[name] = (await r.json()).id;
+    }
+    if (!labels[name]) { failed += ids.length; continue; }
+    const r = await gmailFetch(session, "/messages/batchModify", { method: "POST", headers: json, body: JSON.stringify({ ids, addLabelIds: [labels[name]], removeLabelIds: ["INBOX"] }) });
+    if (r.ok) organized[folder] = ids.length; else failed += ids.length;
+  }
+  return { organized, failed };
 }
 
 // ======================= Outlook (Microsoft Graph) =======================
@@ -170,8 +231,34 @@ async function outlookList(session) {
     const listUnsubscribe = graphHeader(m.internetMessageHeaders, "List-Unsubscribe");
     const oneClick = /one-click/i.test(graphHeader(m.internetMessageHeaders, "List-Unsubscribe-Post"));
     const { score, reasons, isJunk } = scoreMessage({ from, replyTo, subject, snippet, listUnsubscribe });
-    return { id: m.id, from, subject, snippet, score, reasons, isJunk, listUnsubscribe, oneClick };
+    const category = categorize({ from, subject, snippet, listUnsubscribe, isJunk });
+    return { id: m.id, from, subject, snippet, score, reasons, isJunk, category, listUnsubscribe, oneClick };
   });
+}
+
+// ponytail: untested until the Azure app registration exists. One folder per category, found by display name.
+async function outlookOrganize(session, items) {
+  const groups = groupByFolder(items);
+  const organized = {};
+  let failed = 0;
+  const json = { "Content-Type": "application/json" };
+  for (const [folder, ids] of Object.entries(groups)) {
+    const displayName = `${FOLDER_PARENT} ${folder}`;
+    const found = await graphFetch(session, `/mailFolders?$filter=${encodeURIComponent(`displayName eq '${displayName}'`)}`);
+    let folderId = found.ok ? ((await found.json()).value || [])[0]?.id : null;
+    if (!folderId) {
+      const made = await graphFetch(session, "/mailFolders", { method: "POST", headers: json, body: JSON.stringify({ displayName }) });
+      if (made.ok) folderId = (await made.json()).id;
+    }
+    if (!folderId) { failed += ids.length; continue; }
+    let moved = 0;
+    for (const id of ids) {
+      const r = await graphFetch(session, `/messages/${id}/move`, { method: "POST", headers: json, body: JSON.stringify({ destinationId: folderId }) });
+      if (r.ok) moved++; else failed++;
+    }
+    if (moved) organized[folder] = moved;
+  }
+  return { organized, failed };
 }
 
 async function outlookAction(session, { messageId, action, listUnsubscribe, oneClick }) {
@@ -291,7 +378,8 @@ async function icloudList(session) {
       const listUnsubscribe = header(headers, "List-Unsubscribe");
       const oneClick = /one-click/i.test(header(headers, "List-Unsubscribe-Post"));
       const { score, reasons, isJunk } = scoreMessage({ from, replyTo, subject, snippet: "", listUnsubscribe });
-      out.push({ id: m[1], from, subject, snippet: "", score, reasons, isJunk, listUnsubscribe, oneClick });
+      const category = categorize({ from, subject, snippet: "", listUnsubscribe, isJunk });
+      out.push({ id: m[1], from, subject, snippet: "", score, reasons, isJunk, category, listUnsubscribe, oneClick });
     }
     return out.reverse();
   } finally {
@@ -323,6 +411,29 @@ async function icloudAction(session, { messageId, action, listUnsubscribe, oneCl
   }
 }
 
+async function icloudOrganize(session, items) {
+  const groups = groupByFolder(items);
+  const organized = {};
+  let failed = 0;
+  if (!Object.keys(groups).length) return { organized, failed };
+  const client = await imapLogin(session.email, session.appPassword);
+  try {
+    await client.cmd("SELECT INBOX");
+    for (const [folder, ids] of Object.entries(groups)) {
+      const uids = ids.filter((id) => /^\d+$/.test(id));
+      failed += ids.length - uids.length;
+      if (!uids.length) continue;
+      const mailbox = JSON.stringify(`${FOLDER_PARENT}/${folder}`);
+      await client.cmd(`CREATE ${mailbox}`).catch(() => {}); // already there is fine
+      const moved = await client.cmd(`UID MOVE ${uids.join(",")} ${mailbox}`).then(() => true, () => false);
+      if (moved) organized[folder] = uids.length; else failed += uids.length;
+    }
+    return { organized, failed };
+  } finally {
+    await client.quit();
+  }
+}
+
 // ======================= demo inbox =======================
 // Sample mail for App Review and curious visitors: no Google or Apple account, no network calls.
 // It goes through the same scoreMessage as a real inbox, so the triage you see is the real triage.
@@ -331,13 +442,19 @@ const DEMO_MAIL = [
   { id: "d2", from: "PayPal <service@paypa1-secure.example>", replyTo: "", subject: "Final notice: confirm your payment", snippet: "Dear member, click here to claim now.", listUnsubscribe: "" },
   { id: "d3", from: "DealDrop <hello@dealdrop.example>", replyTo: "", subject: "Limited time: 60% off everything", snippet: "Dear customer, shop the sale.", listUnsubscribe: "<https://dealdrop.example/u/1>", oneClick: true },
   { id: "d4", from: "DealDrop <hello@dealdrop.example>", replyTo: "", subject: "Last chance, sale ends today", snippet: "Dear customer, do not miss out.", listUnsubscribe: "<https://dealdrop.example/u/2>", oneClick: true },
-  { id: "d5", from: "GitHub <noreply@github.com>", replyTo: "", subject: "[pare] Pull request merged", snippet: "Your pull request was merged into main.", listUnsubscribe: "" },
+  { id: "d5", from: "GitHub <noreply@github.com>", replyTo: "", subject: "[hagaki] Pull request merged", snippet: "Your pull request was merged into main.", listUnsubscribe: "" },
   { id: "d6", from: "Stripe <receipts@stripe.com>", replyTo: "", subject: "Your receipt from Acme", snippet: "Thanks for your payment.", listUnsubscribe: "" },
   { id: "d7", from: "Sam Rivera <sam@example.org>", replyTo: "", subject: "Lunch Thursday?", snippet: "Are you free around noon?", listUnsubscribe: "" },
+  { id: "d8", from: "Air Canada <noreply@aircanada.com>", replyTo: "", subject: "Your boarding pass for YVR to NRT", snippet: "Check-in is open.", listUnsubscribe: "" },
+  { id: "d9", from: "The Weekly Letter <hello@weekly.example>", replyTo: "", subject: "Issue 42: small tools", snippet: "This week: three small tools worth knowing.", listUnsubscribe: "<https://weekly.example/u>", oneClick: true },
+  { id: "d10", from: "LinkedIn <notifications@linkedin.com>", replyTo: "", subject: "You appeared in 4 searches", snippet: "See who is looking.", listUnsubscribe: "" },
 ];
 
 function demoList() {
-  return DEMO_MAIL.map((m) => ({ ...m, ...scoreMessage(m), oneClick: !!m.oneClick }));
+  return DEMO_MAIL.map((m) => {
+    const scored = scoreMessage(m);
+    return { ...m, ...scored, category: categorize({ ...m, isJunk: scored.isJunk }), oneClick: !!m.oneClick };
+  });
 }
 
 // ======================= dispatch =======================
@@ -347,7 +464,18 @@ function listMessages(session) {
   if (session.provider === "icloud") return icloudList(session);
   return gmailList(session);
 }
+function organizeMessages(session, items) {
+  if (session.provider === "demo") {
+    const organized = {};
+    for (const [folder, ids] of Object.entries(groupByFolder(items))) organized[folder] = ids.length;
+    return { demo: true, organized, failed: 0 };
+  }
+  if (session.provider === "outlook") return outlookOrganize(session, items);
+  if (session.provider === "icloud") return icloudOrganize(session, items);
+  return gmailOrganize(session, items);
+}
 function performAction(session, body) {
+  if (body.action === "organize") return organizeMessages(session, [{ messageId: body.messageId, category: body.category }]);
   if (session.provider === "demo") return { demo: true, [body.action === "unsubscribe" ? "unsubscribed" : body.action === "delete" ? "deleted" : "archived"]: true };
   if (session.provider === "outlook") return outlookAction(session, body);
   if (session.provider === "icloud") return icloudAction(session, body);
@@ -490,6 +618,21 @@ export default {
       const body = await request.json();
       try {
         return Response.json(await performAction(session, body));
+      } catch (e) {
+        return new Response(String(e), { status: 502 });
+      }
+    }
+
+    // bulk: file every message into its smart folder in one pass
+    if (pathname === "/api/organize" && request.method === "POST") {
+      const id = sessionIdFromRequest(request);
+      let session = await getSession(env, id);
+      if (!session) return new Response("not connected", { status: 401 });
+      session = await refreshIfNeeded(env, id, session);
+      if (!session) return new Response("session expired", { status: 401 });
+      const { items } = await request.json();
+      try {
+        return Response.json(await organizeMessages(session, items));
       } catch (e) {
         return new Response(String(e), { status: 502 });
       }

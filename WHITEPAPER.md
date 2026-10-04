@@ -1,32 +1,25 @@
-# Pare Technical Whitepaper
+# Hagaki Technical Whitepaper
 
 **v2.0.0** | September 2026
 
 An inbox fills up the same way every day: real mail mixed in with junk that
 outnumbers it ten to one, and most triage tools want a login of their own
-and a place to sit between you and your mail forever. Pare connects to
+and a place to sit between you and your mail forever. Hagaki connects to
 Gmail directly — web, iOS, macOS — reads the inbox, scores each message, and
 clears the junk in one tap, because triage is a one-tap decision repeated a
 hundred times a day, not a product you should have to configure.
 
 ## What it does
 
-Sign-in with Google grants read/modify access to Gmail (OAuth, scoped to
-`gmail.modify`). A Cloudflare Worker backend lists the inbox over the Gmail
-API and scores each message before anything is touched: sender/display-name
-domain mismatch, generic bulk greeting plus a call to action, urgency
-language, an unsubscribe header from a sender nobody recognizes, a reply-to
-domain that doesn't match the sender. Two or more signals confirms junk,
-because any single signal alone is too easy for a legitimate sender to trip
-by accident; a real person or a service the user has an account with is
-never scored here regardless of tone, since the cost of wrongly archiving a
-real email is much higher than missing a piece of spam.
+Hagaki reads an inbox over the Gmail API, Microsoft Graph or iCloud IMAP and puts every message in one of seven boxes: Receipts, Travel, Dev, Newsletters, Social, Promotions or Junk. A message from a person with no bulk signals has no box and stays in the inbox. The categorizer is a short list of sender, subject and Gmail category rules, shared by all three providers, and the same junk scorer runs first.
+
+Filing is one call per box. Gmail: create the `Hagaki/<Box>` label if it is missing, then `batchModify` to add it and remove INBOX. iCloud: `CREATE` the folder, then `UID MOVE`. Nothing is trashed. Delete and Archive stay as separate, explicit actions.
 
 ## Unsubscribing
 
 Most bulk senders already support RFC 8058 one-click unsubscribe —
 `List-Unsubscribe-Post: List-Unsubscribe=One-Click` alongside a
-`List-Unsubscribe` URL. Pare POSTs to it directly; a 2xx/204 confirms it,
+`List-Unsubscribe` URL. Hagaki POSTs to it directly; a 2xx/204 confirms it,
 no browser required, because opening a browser to click one more button
 defeats the point of automating the tedious part. The message is archived
 either way once you act on it — archive, delete, or unsubscribe are each one
@@ -51,7 +44,7 @@ job that needs a coding agent, not a mail client: matching an App Store
 Connect or GitHub Actions alert to the right project, pulling the real
 failure log, and fixing or filing it. That half needs a coding agent making
 judgment calls, not a scoring rule, so it stays a skill instead of folding
-into the app. Pare and `/mail` share the same spam-scoring rules but run
+into the app. Hagaki and `/mail` share the same spam-scoring rules but run
 independently.
 
 ## Design

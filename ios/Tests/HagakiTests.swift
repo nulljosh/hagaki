@@ -1,9 +1,9 @@
 import Testing
 import Foundation
-@testable import Pare
+@testable import Hagaki
 
 private func msg(_ from: String, junk: Bool = true, unsub: String? = "<https://x.example/u>") -> Message {
-    Message(id: UUID().uuidString, from: from, subject: "s", snippet: nil, score: junk ? 3 : 0, reasons: [], isJunk: junk, listUnsubscribe: unsub, oneClick: nil)
+    Message(id: UUID().uuidString, from: from, subject: "s", snippet: nil, score: junk ? 3 : 0, reasons: [], isJunk: junk, category: junk ? "Junk" : nil, listUnsubscribe: unsub, oneClick: nil)
 }
 
 @Test func domainAndSenderName() {
@@ -23,7 +23,7 @@ private func msg(_ from: String, junk: Bool = true, unsub: String? = "<https://x
 
 @Test func requestsCarryTheBearerToken() {
     let r = API(token: "tok").request("api/messages")
-    #expect(r.url?.host == "pare.heyitsmejosh.com")
+    #expect(r.url?.host == "hagaki.heyitsmejosh.com")
     #expect(r.value(forHTTPHeaderField: "Authorization") == "Bearer tok")
 }
 
@@ -38,4 +38,17 @@ private func msg(_ from: String, junk: Bool = true, unsub: String? = "<https://x
     #expect(Keychain.get("test-key") == "abc")
     Keychain.set("test-key", nil)
     #expect(Keychain.get("test-key") == nil)
+}
+
+@Test func smartFolderIsNilForPeople() throws {
+    let json = #"[{"id":"1","from":"Stripe <r@stripe.com>","subject":"Receipt","snippet":"s","score":0,"reasons":[],"isJunk":false,"category":"Receipts","listUnsubscribe":"","oneClick":false},{"id":"2","from":"Sam <sam@x.org>","subject":"Lunch","snippet":"s","score":0,"reasons":[],"isJunk":false,"category":"Inbox","listUnsubscribe":"","oneClick":false}]"#
+    let list = try JSONDecoder().decode([Message].self, from: Data(json.utf8))
+    #expect(list[0].folder == "Receipts")
+    #expect(list[1].folder == nil)
+    #expect(smartFolders.count == 7)
+}
+
+@Test func organizeResultCountsEveryBox() throws {
+    let r = try JSONDecoder().decode(OrganizeResult.self, from: Data(#"{"organized":{"Dev":2,"Travel":1},"failed":0}"#.utf8))
+    #expect(r.total == 3)
 }

@@ -1,4 +1,4 @@
-# Pare roadmap
+# Hagaki roadmap
 
 ## Bugs
 - [x] Report rejected iCloud archive moves as unsuccessful.

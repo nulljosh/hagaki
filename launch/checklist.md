@@ -1,6 +1,6 @@
-# Launch checklist - Pare
+# Launch checklist - Hagaki
 
-Web-first kit. No App Store link included anywhere in this kit - Pare has no approved store build right now (rejected on both iOS and macOS). Only the web app is linked: https://pare.heyitsmejosh.com
+Web-first kit. No App Store link included anywhere in this kit - Hagaki has no approved store build right now (rejected on both iOS and macOS). Only the web app is linked: https://hagaki.heyitsmejosh.com
 
 ## Joshua does by hand
 - [ ] Product Hunt: create the post from launch/producthunt.md, upload launch/gallery images, submit, pick a launch day, line up a hunter if wanted.

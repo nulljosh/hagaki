@@ -61,7 +61,7 @@ final class GoogleAuth: NSObject, ASWebAuthenticationPresentationContextProvidin
         guard let (data, _) = try? await URLSession.shared.data(for: req),
               let tok = try? JSONDecoder().decode(GoogleToken.self, from: data) else { return nil }
 
-        var native = URLRequest(url: URL(string: "https://pare.heyitsmejosh.com/auth/native")!)
+        var native = URLRequest(url: URL(string: "https://hagaki.heyitsmejosh.com/auth/native")!)
         native.httpMethod = "POST"
         native.setValue("application/json", forHTTPHeaderField: "Content-Type")
         native.httpBody = try? JSONEncoder().encode(NativeAuth(access_token: tok.access_token, refresh_token: tok.refresh_token, expires_in: tok.expires_in, client_id: iosClientID))

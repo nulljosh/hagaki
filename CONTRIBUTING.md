@@ -1,10 +1,10 @@
-# Contributing to Pare
+# Contributing to Hagaki
 
 ## Setup
 
 ```
-git clone https://github.com/nulljosh/pare.git
-cd pare
+git clone https://github.com/nulljosh/hagaki.git
+cd hagaki
 npm install
 ```
 

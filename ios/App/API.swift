@@ -1,6 +1,6 @@
 import Foundation
 
-let apiBase = URL(string: "https://pare.heyitsmejosh.com")!
+let apiBase = URL(string: "https://hagaki.heyitsmejosh.com")!
 
 struct Message: Codable, Identifiable, Equatable {
     let id: String
@@ -10,6 +10,7 @@ struct Message: Codable, Identifiable, Equatable {
     let score: Int
     let reasons: [String]
     let isJunk: Bool
+    let category: String?
     let listUnsubscribe: String?
     let oneClick: Bool?
 
@@ -18,9 +19,14 @@ struct Message: Codable, Identifiable, Equatable {
         return name.isEmpty ? from : name
     }
     var domain: String { senderDomain(from) }
+    /// One of the seven smart folders, or nil when the mail is from a person and stays in the inbox.
+    var folder: String? { smartFolders.contains(category ?? "") ? category : nil }
 }
 
-enum Action: String { case archive, delete, unsubscribe }
+/// Seven boxes, like the seven red boxes on a Japanese postcard.
+let smartFolders = ["Receipts", "Travel", "Dev", "Newsletters", "Social", "Promotions", "Junk"]
+
+enum Action: String { case archive, delete, unsubscribe, organize }
 
 func senderDomain(_ from: String) -> String {
     guard let at = from.lastIndex(of: "@") else { return from.lowercased() }
@@ -29,11 +35,17 @@ func senderDomain(_ from: String) -> String {
 
 /// Junk senders who mailed more than once and offered an unsubscribe link, most frequent first.
 func repeatSenders(_ messages: [Message]) -> [(domain: String, messages: [Message])] {
-    let junk = messages.filter { $0.isJunk && ($0.listUnsubscribe ?? "").isEmpty == false }
+    let junk = messages.filter { ["Junk", "Promotions", "Newsletters"].contains($0.category ?? "") && ($0.listUnsubscribe ?? "").isEmpty == false }
     return Dictionary(grouping: junk, by: \.domain)
         .filter { $0.value.count > 1 }
         .map { (domain: $0.key, messages: $0.value) }
         .sorted { $0.messages.count > $1.messages.count }
+}
+
+struct OrganizeResult: Decodable, Equatable {
+    let organized: [String: Int]
+    let failed: Int
+    var total: Int { organized.values.reduce(0, +) }
 }
 
 struct APIError: LocalizedError {
@@ -60,10 +72,21 @@ struct API {
     }
 
     func perform(_ action: Action, on m: Message) async throws {
-        struct Body: Encodable { let messageId: String; let action: String; let listUnsubscribe: String?; let oneClick: Bool? }
-        let body = try JSONEncoder().encode(Body(messageId: m.id, action: action.rawValue, listUnsubscribe: m.listUnsubscribe, oneClick: m.oneClick))
+        struct Body: Encodable { let messageId: String; let action: String; let category: String?; let listUnsubscribe: String?; let oneClick: Bool? }
+        let body = try JSONEncoder().encode(Body(messageId: m.id, action: action.rawValue, category: m.folder, listUnsubscribe: m.listUnsubscribe, oneClick: m.oneClick))
         let (data, response) = try await session.data(for: request("api/action", method: "POST", body: body))
         try check(response, data)
+    }
+
+    /// Files every message that has a smart folder, in one pass. Nothing is deleted.
+    func organize(_ messages: [Message]) async throws -> OrganizeResult {
+        struct Item: Encodable { let messageId: String; let category: String }
+        struct Body: Encodable { let items: [Item] }
+        let items = messages.compactMap { m in m.folder.map { Item(messageId: m.id, category: $0) } }
+        let body = try JSONEncoder().encode(Body(items: items))
+        let (data, response) = try await session.data(for: request("api/organize", method: "POST", body: body))
+        try check(response, data)
+        return try JSONDecoder().decode(OrganizeResult.self, from: data)
     }
 
     private func check(_ response: URLResponse, _ data: Data) throws {
