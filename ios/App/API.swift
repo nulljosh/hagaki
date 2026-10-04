@@ -1,6 +1,6 @@
 import Foundation
 
-let apiBase = URL(string: "https://siftbox.heyitsmejosh.com")!
+let apiBase = URL(string: "https://pare.heyitsmejosh.com")!
 
 struct Message: Codable, Identifiable, Equatable {
     let id: String

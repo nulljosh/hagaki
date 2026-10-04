@@ -1,10 +1,10 @@
-# Siftbox Technical Whitepaper
+# Pare Technical Whitepaper
 
 **v2.0.0** | September 2026
 
 An inbox fills up the same way every day: real mail mixed in with junk that
 outnumbers it ten to one, and most triage tools want a login of their own
-and a place to sit between you and your mail forever. Siftbox connects to
+and a place to sit between you and your mail forever. Pare connects to
 Gmail directly — web, iOS, macOS — reads the inbox, scores each message, and
 clears the junk in one tap, because triage is a one-tap decision repeated a
 hundred times a day, not a product you should have to configure.
@@ -26,7 +26,7 @@ real email is much higher than missing a piece of spam.
 
 Most bulk senders already support RFC 8058 one-click unsubscribe —
 `List-Unsubscribe-Post: List-Unsubscribe=One-Click` alongside a
-`List-Unsubscribe` URL. Siftbox POSTs to it directly; a 2xx/204 confirms it,
+`List-Unsubscribe` URL. Pare POSTs to it directly; a 2xx/204 confirms it,
 no browser required, because opening a browser to click one more button
 defeats the point of automating the tedious part. The message is archived
 either way once you act on it — archive, delete, or unsubscribe are each one
@@ -51,7 +51,7 @@ job that needs a coding agent, not a mail client: matching an App Store
 Connect or GitHub Actions alert to the right project, pulling the real
 failure log, and fixing or filing it. That half needs a coding agent making
 judgment calls, not a scoring rule, so it stays a skill instead of folding
-into the app. Siftbox and `/mail` share the same spam-scoring rules but run
+into the app. Pare and `/mail` share the same spam-scoring rules but run
 independently.
 
 ## Design

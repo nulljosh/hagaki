@@ -1,4 +1,4 @@
-# Siftbox roadmap
+# Pare roadmap
 
 ## Bugs
 - [x] Report rejected iCloud archive moves as unsuccessful.

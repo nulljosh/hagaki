@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pare: inbox triage app</title>
 <meta name="description" content="Connect Gmail or iCloud and Pare reads your inbox, scores the junk, and clears it in one tap. Outlook coming soon.">
-<link rel="canonical" href="https://siftbox.heyitsmejosh.com/">
+<link rel="canonical" href="https://pare.heyitsmejosh.com/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Pare: inbox triage app">
 <meta property="og:description" content="Connect Gmail or iCloud and Pare reads your inbox, scores the junk, and clears it in one tap. Outlook coming soon.">
-<meta property="og:url" content="https://siftbox.heyitsmejosh.com/">
-<meta property="og:image" content="https://siftbox.heyitsmejosh.com/og.png">
+<meta property="og:url" content="https://pare.heyitsmejosh.com/">
+<meta property="og:image" content="https://pare.heyitsmejosh.com/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pare: inbox triage app">
 <meta name="twitter:description" content="Connect Gmail or iCloud and Pare reads your inbox, scores the junk, and clears it in one tap. Outlook coming soon.">
-<meta name="twitter:image" content="https://siftbox.heyitsmejosh.com/og.png">
+<meta name="twitter:image" content="https://pare.heyitsmejosh.com/og.png">
 <link rel="icon" href="icon.svg">
 <script>
 // Native app windows already show "Pare" in their title bar — don't repeat the wordmark inside the page.
@@ -206,7 +206,7 @@ footer.foot .foot-rule>:first-child{order:0}footer.foot .foot-rule>:last-child{o
     </div>
   </div>
 
-  <a class="btn ghlink" href="https://github.com/nulljosh/siftbox">Source on GitHub →</a>
+  <a class="btn ghlink" href="https://github.com/nulljosh/pare">Source on GitHub →</a>
 
 <footer class="foot">
   <div class="foot-rule" aria-hidden="true"><span>Pare</span><span>Your inbox already knows what's junk</span></div>
@@ -223,23 +223,23 @@ footer.foot .foot-rule>:first-child{order:0}footer.foot .foot-rule>:last-child{o
       <h3>Explore</h3>
       <ul>
         <li><a href="#hero">Top of page</a></li>
-        <li><a href="https://github.com/nulljosh/siftbox">Source on GitHub</a></li>
+        <li><a href="https://github.com/nulljosh/pare">Source on GitHub</a></li>
       </ul>
     </div>
     <div class="foot-col">
       <h3>Developers</h3>
       <ul>
-        <li><a href="https://github.com/nulljosh/siftbox">Source</a></li>
-        <li><a href="https://github.com/nulljosh/siftbox/blob/main/docs/ARCHITECTURE.md">Architecture</a></li>
-        <li><a href="https://github.com/nulljosh/siftbox/blob/main/CONTRIBUTING.md">Contributing</a></li>
-        <li><a href="https://github.com/nulljosh/siftbox/blob/main/SECURITY.md">Security policy</a></li>
-        <li><a href="https://github.com/nulljosh/siftbox/issues">Report a bug</a></li>
+        <li><a href="https://github.com/nulljosh/pare">Source</a></li>
+        <li><a href="https://github.com/nulljosh/pare/blob/main/docs/ARCHITECTURE.md">Architecture</a></li>
+        <li><a href="https://github.com/nulljosh/pare/blob/main/CONTRIBUTING.md">Contributing</a></li>
+        <li><a href="https://github.com/nulljosh/pare/blob/main/SECURITY.md">Security policy</a></li>
+        <li><a href="https://github.com/nulljosh/pare/issues">Report a bug</a></li>
       </ul>
     </div>
     <div class="foot-col">
       <h3>Project</h3>
       <ul>
-        <li><a href="https://github.com/nulljosh/siftbox/blob/main/LICENSE">License (MIT)</a></li>
+        <li><a href="https://github.com/nulljosh/pare/blob/main/LICENSE">License (MIT)</a></li>
         <li><a href="privacy.html">Privacy</a></li>
         <li><a href="https://heyitsmejosh.com">Portfolio</a></li>
         <li><a href="#top">Back to top</a></li>
@@ -319,7 +319,7 @@ footer.foot .foot-rule>:first-child{order:0}footer.foot .foot-rule>:last-child{o
   function connectPicker() {
     body.innerHTML = `
       <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
-        <a class="btn" href="${native ? 'siftboxnative://connect/gmail' : '/auth/start'}">Connect Gmail →</a>
+        <a class="btn" href="${native ? 'parenative://connect/gmail' : '/auth/start'}">Connect Gmail →</a>
         <button class="btn" disabled title="Coming soon" style="opacity:.4;cursor:not-allowed;">Connect Outlook (soon)</button>
         <button class="btn" id="icloudBtn" style="cursor:pointer;">Connect iCloud →</button>
         <button class="btn" id="demoBtn" style="cursor:pointer;">Try the demo inbox →</button>

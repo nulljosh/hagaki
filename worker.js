@@ -331,7 +331,7 @@ const DEMO_MAIL = [
   { id: "d2", from: "PayPal <service@paypa1-secure.example>", replyTo: "", subject: "Final notice: confirm your payment", snippet: "Dear member, click here to claim now.", listUnsubscribe: "" },
   { id: "d3", from: "DealDrop <hello@dealdrop.example>", replyTo: "", subject: "Limited time: 60% off everything", snippet: "Dear customer, shop the sale.", listUnsubscribe: "<https://dealdrop.example/u/1>", oneClick: true },
   { id: "d4", from: "DealDrop <hello@dealdrop.example>", replyTo: "", subject: "Last chance, sale ends today", snippet: "Dear customer, do not miss out.", listUnsubscribe: "<https://dealdrop.example/u/2>", oneClick: true },
-  { id: "d5", from: "GitHub <noreply@github.com>", replyTo: "", subject: "[siftbox] Pull request merged", snippet: "Your pull request was merged into main.", listUnsubscribe: "" },
+  { id: "d5", from: "GitHub <noreply@github.com>", replyTo: "", subject: "[pare] Pull request merged", snippet: "Your pull request was merged into main.", listUnsubscribe: "" },
   { id: "d6", from: "Stripe <receipts@stripe.com>", replyTo: "", subject: "Your receipt from Acme", snippet: "Thanks for your payment.", listUnsubscribe: "" },
   { id: "d7", from: "Sam Rivera <sam@example.org>", replyTo: "", subject: "Lunch Thursday?", snippet: "Are you free around noon?", listUnsubscribe: "" },
 ];

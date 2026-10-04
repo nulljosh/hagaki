@@ -1,6 +1,6 @@
-# Siftbox Money
+# Pare Money
 
-How Siftbox makes money. The fleet-wide ledger is `GTM.md` in the Code root.
+How Pare makes money. The fleet-wide ledger is `GTM.md` in the Code root.
 
 ## Price
 
@@ -22,6 +22,6 @@ Do not build the paywall until a store build is approved. Then: free tier with a
 
 Not applicable yet.
 
-Anyone who got Siftbox while it was free keeps it free. Only new customers pay.
+Anyone who got Pare while it was free keeps it free. Only new customers pay.
 
 *ASC 6811141466. Set 2026-09-20.*

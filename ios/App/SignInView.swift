@@ -10,7 +10,7 @@ struct SignInView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("Siftbox reads your inbox, scores the junk, and clears it in a tap. It only acts when you tap.")
+                    Text("Pare reads your inbox, scores the junk, and clears it in a tap. It only acts when you tap.")
                         .foregroundStyle(.secondary)
                 }
                 Section("Sign in") {
@@ -41,7 +41,7 @@ struct SignInView: View {
             .formStyle(.grouped)
             .disabled(session.busy)
             .overlay { if session.busy { ProgressView() } }
-            .navigationTitle("Siftbox")
+            .navigationTitle("Pare")
         }
     }
 }

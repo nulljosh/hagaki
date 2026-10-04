@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import Siftbox
+@testable import Pare
 
 private func msg(_ from: String, junk: Bool = true, unsub: String? = "<https://x.example/u>") -> Message {
     Message(id: UUID().uuidString, from: from, subject: "s", snippet: nil, score: junk ? 3 : 0, reasons: [], isJunk: junk, listUnsubscribe: unsub, oneClick: nil)
@@ -23,7 +23,7 @@ private func msg(_ from: String, junk: Bool = true, unsub: String? = "<https://x
 
 @Test func requestsCarryTheBearerToken() {
     let r = API(token: "tok").request("api/messages")
-    #expect(r.url?.host == "siftbox.heyitsmejosh.com")
+    #expect(r.url?.host == "pare.heyitsmejosh.com")
     #expect(r.value(forHTTPHeaderField: "Authorization") == "Bearer tok")
 }
 

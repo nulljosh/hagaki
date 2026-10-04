@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct SiftboxApp: App {
+struct PareApp: App {
     @StateObject private var session = Session()
 
     var body: some Scene {

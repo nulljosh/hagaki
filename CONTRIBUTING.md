@@ -1,10 +1,10 @@
-# Contributing to Siftbox
+# Contributing to Pare
 
 ## Setup
 
 ```
-git clone https://github.com/nulljosh/siftbox.git
-cd siftbox
+git clone https://github.com/nulljosh/pare.git
+cd pare
 npm install
 ```
 
