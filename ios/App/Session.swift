@@ -1,0 +1,54 @@
+import SwiftUI
+import Security
+
+/// The sign-in session token lives in the Keychain, never in UserDefaults.
+enum Keychain {
+    private static func query(_ key: String) -> [String: Any] {
+        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "com.nulljosh.sieve", kSecAttrAccount as String: key]
+    }
+    static func get(_ key: String) -> String? {
+        var q = query(key); q[kSecReturnData as String] = true
+        var out: CFTypeRef?
+        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let d = out as? Data else { return nil }
+        return String(data: d, encoding: .utf8)
+    }
+    static func set(_ key: String, _ value: String?) {
+        SecItemDelete(query(key) as CFDictionary)
+        guard let value else { return }
+        var q = query(key); q[kSecValueData as String] = Data(value.utf8)
+        SecItemAdd(q as CFDictionary, nil)
+    }
+}
+
+@MainActor
+final class Session: ObservableObject {
+    @Published private(set) var token: String?
+    @Published var busy = false
+    @Published var error: String?
+
+    init(token: String? = Keychain.get("session")) { self.token = token }
+
+    var api: API? { token.map { API(token: $0) } }
+
+    func store(_ t: String?) { token = t; Keychain.set("session", t) }
+
+    func signOut() { store(nil) }
+
+    func demo() async { await run { try await Auth.demo() } }
+    func icloud(email: String, appPassword: String) async { await run { try await Auth.icloud(email: email, appPassword: appPassword) } }
+    func gmail() {
+        busy = true
+        GoogleAuth.shared.connect { [weak self] t in
+            Task { @MainActor in
+                self?.busy = false
+                if let t { self?.store(t) } else { self?.error = "Gmail sign-in was cancelled." }
+            }
+        }
+    }
+
+    private func run(_ work: () async throws -> String) async {
+        busy = true; error = nil
+        defer { busy = false }
+        do { store(try await work()) } catch { self.error = error.localizedDescription }
+    }
+}
