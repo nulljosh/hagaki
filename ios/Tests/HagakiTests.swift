@@ -52,3 +52,16 @@ private func msg(_ from: String, junk: Bool = true, unsub: String? = "<https://x
     let r = try JSONDecoder().decode(OrganizeResult.self, from: Data(#"{"organized":{"Dev":2,"Travel":1},"failed":0}"#.utf8))
     #expect(r.total == 3)
 }
+
+/// Live end to end, no UI automation needed: the app's own demo sign-in, inbox and File everything
+/// against hagaki.heyitsmejosh.com. Runs inside the app on Mac and iPhone.
+@Test func demoInboxFilesEverythingLive() async throws {
+    let api = API(token: try await Auth.demo())
+    let inbox = try await api.messages()
+    #expect(inbox.count >= 8)
+    #expect(Set(inbox.compactMap(\.folder)).isSuperset(of: ["Receipts", "Travel", "Dev", "Newsletters", "Social", "Junk"]))
+    #expect(inbox.filter { $0.folder == nil }.map(\.sender) == ["Sam Rivera"])
+    let result = try await api.organize(inbox)
+    #expect(result.failed == 0)
+    #expect(result.total == inbox.filter { $0.folder != nil }.count)
+}
