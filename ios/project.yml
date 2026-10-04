@@ -40,15 +40,30 @@ targets:
         "TEST_HOST[sdk=macosx*]": $(BUILT_PRODUCTS_DIR)/Hagaki.app/Contents/MacOS/Hagaki
         GENERATE_INFOPLIST_FILE: YES
         DEVELOPMENT_TEAM: QMM486NPYC
+  HagakiUITests:
+    type: bundle.ui-testing
+    supportedDestinations: [iOS, macOS]
+    sources:
+      - path: UITests
+    dependencies:
+      - target: Hagaki
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nulljosh.sieve.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        DEVELOPMENT_TEAM: QMM486NPYC
+        TEST_TARGET_NAME: Hagaki
 schemes:
   Hagaki:
     build:
       targets:
         Hagaki: all
         HagakiTests: [test]
+        HagakiUITests: [test]
     test:
       targets:
         - HagakiTests
+        - HagakiUITests
     run:
       config: Debug
     archive:

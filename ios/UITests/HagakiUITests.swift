@@ -1,0 +1,41 @@
+import XCTest
+
+/// End to end against the live demo inbox: open it, file everything, sign out.
+final class HagakiUITests: XCTestCase {
+    override func setUp() { continueAfterFailure = false }
+
+    func testDemoFilesEverythingThenSignsOut() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-hagakiDemo"]
+        app.launch()
+
+        // If a session survived from an earlier run, sign out first so the demo path is what we test.
+        let fileAll = app.buttons["File everything"]
+        XCTAssertTrue(fileAll.waitForExistence(timeout: 20), "inbox never loaded")
+
+        // Seven boxes: every demo folder shows up, and the person stays in the inbox.
+        for header in ["Receipts", "Travel", "Dev"] {
+            let h = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH[c] %@", header)).firstMatch
+            XCTAssertTrue(h.waitForExistence(timeout: 5), "missing section \(header)")
+        }
+
+        fileAll.tap()
+        let filed = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Filed'")).firstMatch
+        XCTAssertTrue(filed.waitForExistence(timeout: 20), "File everything gave no result")
+        XCTAssertTrue(filed.label.contains("Nothing was deleted"))
+        XCTAssertFalse(app.staticTexts["Stripe"].exists, "filed mail should leave the list")
+        // Junk was filed too, so only the person is left, under "Stays in your inbox".
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH[c] 'Stays in your inbox (1)'")).firstMatch.waitForExistence(timeout: 5), "the person stays put")
+        XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH[c] 'Junk'")).firstMatch.exists, "junk should be filed, not left")
+
+        app.buttons["More"].firstMatch.tap()
+        #if os(macOS)
+        app.menuItems["Sign out"].tap()
+        #else
+        app.buttons["Sign out"].tap()
+        #endif
+        XCTAssertTrue(app.buttons["Try the demo inbox"].waitForExistence(timeout: 10), "sign out did not return to sign-in")
+        XCTAssertTrue(app.buttons["Continue with Gmail"].exists)
+        XCTAssertTrue(app.buttons["Continue with iCloud Mail"].exists)
+    }
+}
