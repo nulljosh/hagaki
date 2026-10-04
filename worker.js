@@ -91,14 +91,14 @@ function scoreMessage({ from, replyTo, subject, snippet, listUnsubscribe }) {
 const FOLDER_PARENT = "Hagaki";
 const FOLDERS = ["Receipts", "Travel", "Dev", "Newsletters", "Social", "Promotions", "Junk"];
 const DEV = /(?:github|gitlab|vercel|sentry|cloudflare|supabase|netlify|npmjs|circleci|atlassian|linear|appstoreconnect|itunesconnect|developer\.apple|testflight|twilio|kaggle|apify|getgitguardian)\./i;
-const DEV_WORDS = /\b(build (?:failed|succeeded)|deploy(?:ment)?|pull request|workflow run|app store connect|testflight|new sign-in|your [^.]{1,60} submission|uploaded build|available to test|invited you to test)\b/i;
-const RECEIPT = /\b(receipts?|invoices?|your order|order confirmation|payment|statement|billing|renewal|charged|bill is ready)\b/i;
+const DEV_WORDS = /\b(build (?:failed|succeeded)|deploy(?:ment)?|pull request|workflow run|app store connect|testflight|new sign-in|your [^.]{1,60} submission|uploaded build|available to test|invited you to test|webhook)\b/i;
+const RECEIPT = /\b(receipts?|invoices?|your order|order confirmation|payment|statement|billing|renewal|charged|bill is ready|order (?:has been )?(?:received|confirmed|shipped))\b/i;
 const PAYMENTS = /(?:stripe|paypal|square|squareup|shopify|venmo)\./i;
 const TRAVEL = /\b(flights?|boarding pass|itinerary|booking confirmation|reservation|hotel|check-in)\b/i;
 const TRAVEL_SITES = /(?:airbnb|expedia|booking|aircanada|westjet|kayak|tripadvisor|airlines?)\./i;
 const SOCIAL = /(?:linkedin|facebookmail|twitter|instagram|reddit|redditmail|discord|pinterest|tiktok|snapchat|nextdoor)\./i;
 const PROMO_WORDS = /\b(sale|\d+% off|deals?|offers?|coupon|discount|free shipping|limited time)\b/i;
-const LETTER_SITES = /(?:substack|medium|beehiiv|mailchimp|convertkit|buttondown)\./i;
+const LETTER_SITES = /(?:substack|medium|beehiiv|gumroad|mailchimp|convertkit|buttondown)\./i;
 const LETTER_WORDS = /\b(newsletter|digest|weekly|monthly|issue #?\d+)\b/i;
 
 function categorize({ from, subject, snippet, listUnsubscribe, isJunk, labelIds = [] }) {
