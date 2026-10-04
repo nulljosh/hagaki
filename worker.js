@@ -40,7 +40,7 @@ function sessionIdFromRequest(req) {
 }
 
 async function refreshIfNeeded(env, id, session) {
-  if (session.provider === "icloud") return session; // app-password login, re-authenticates every call
+  if (session.provider === "icloud" || session.provider === "demo") return session; // app-password login, re-authenticates every call
   if (session.expires_at > Date.now() + 30_000) return session;
   const tokenUrl = session.provider === "outlook" ? MS_TOKEN : GOOGLE_TOKEN;
   const body = new URLSearchParams({
@@ -323,13 +323,32 @@ async function icloudAction(session, { messageId, action, listUnsubscribe, oneCl
   }
 }
 
+// ======================= demo inbox =======================
+// Sample mail for App Review and curious visitors: no Google or Apple account, no network calls.
+// It goes through the same scoreMessage as a real inbox, so the triage you see is the real triage.
+const DEMO_MAIL = [
+  { id: "d1", from: "Apple <alerts@fakeapple-support.example>", replyTo: "help@mailer.example", subject: "Act now: verify your account", snippet: "Dear customer, your Apple ID will be suspended.", listUnsubscribe: "" },
+  { id: "d2", from: "PayPal <service@paypa1-secure.example>", replyTo: "", subject: "Final notice: confirm your payment", snippet: "Dear member, click here to claim now.", listUnsubscribe: "" },
+  { id: "d3", from: "DealDrop <hello@dealdrop.example>", replyTo: "", subject: "Limited time: 60% off everything", snippet: "Dear customer, shop the sale.", listUnsubscribe: "<https://dealdrop.example/u/1>", oneClick: true },
+  { id: "d4", from: "DealDrop <hello@dealdrop.example>", replyTo: "", subject: "Last chance, sale ends today", snippet: "Dear customer, do not miss out.", listUnsubscribe: "<https://dealdrop.example/u/2>", oneClick: true },
+  { id: "d5", from: "GitHub <noreply@github.com>", replyTo: "", subject: "[siftbox] Pull request merged", snippet: "Your pull request was merged into main.", listUnsubscribe: "" },
+  { id: "d6", from: "Stripe <receipts@stripe.com>", replyTo: "", subject: "Your receipt from Acme", snippet: "Thanks for your payment.", listUnsubscribe: "" },
+  { id: "d7", from: "Sam Rivera <sam@example.org>", replyTo: "", subject: "Lunch Thursday?", snippet: "Are you free around noon?", listUnsubscribe: "" },
+];
+
+function demoList() {
+  return DEMO_MAIL.map((m) => ({ ...m, ...scoreMessage(m), oneClick: !!m.oneClick }));
+}
+
 // ======================= dispatch =======================
 function listMessages(session) {
+  if (session.provider === "demo") return demoList();
   if (session.provider === "outlook") return outlookList(session);
   if (session.provider === "icloud") return icloudList(session);
   return gmailList(session);
 }
 function performAction(session, body) {
+  if (session.provider === "demo") return { demo: true, [body.action === "unsubscribe" ? "unsubscribed" : body.action === "delete" ? "deleted" : "archived"]: true };
   if (session.provider === "outlook") return outlookAction(session, body);
   if (session.provider === "icloud") return icloudAction(session, body);
   return gmailAction(session, body);
@@ -432,6 +451,13 @@ export default {
       }
       const id = crypto.randomUUID();
       await putSession(env, id, { provider: "icloud", email, appPassword });
+      return Response.json({ token: id });
+    }
+
+    // Demo inbox: a session that never touches Google or Apple. Nothing real can be changed.
+    if (pathname === "/auth/demo" && request.method === "POST") {
+      const id = crypto.randomUUID();
+      await putSession(env, id, { provider: "demo" });
       return Response.json({ token: id });
     }
 

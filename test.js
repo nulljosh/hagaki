@@ -7,8 +7,8 @@ const source = readFileSync(new URL('./worker.js', import.meta.url), 'utf8')
   .replace('import { connect } from "cloudflare:sockets";', '')
   .replace('export default', 'const worker =');
 let archiveOk = false;
-const { scoreMessage, gmailAction } = runInNewContext(
-  source + '\n;({ scoreMessage, gmailAction });',
+const { scoreMessage, gmailAction, demoList, performAction } = runInNewContext(
+  source + '\n;({ scoreMessage, gmailAction, demoList, performAction });',
   { fetch: async () => ({ ok: archiveOk }) },
 );
 const message = domain => ({
@@ -46,3 +46,12 @@ for (const archived of [false, true]) {
   assert.equal(closed, true);
 }
 console.log('iCloud archive results and connection cleanup: ok');
+
+// demo inbox: real scorer over sample mail, and actions never leave the worker
+{
+  const demo = demoList();
+  assert.ok(demo.filter(m => m.isJunk).length >= 3, 'demo has junk');
+  assert.ok(demo.filter(m => !m.isJunk).length >= 3, 'demo has legit mail');
+  assert.equal(demo.filter(m => m.isJunk && m.listUnsubscribe && m.from.includes('dealdrop')).length, 2, 'repeat sender for the rollup');
+  assert.equal(JSON.stringify(performAction({ provider: 'demo' }, { action: 'archive' })), JSON.stringify({ demo: true, archived: true }));
+}

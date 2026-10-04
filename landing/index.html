@@ -322,7 +322,9 @@ footer.foot .foot-rule>:first-child{order:0}footer.foot .foot-rule>:last-child{o
         <a class="btn" href="${native ? 'siftboxnative://connect/gmail' : '/auth/start'}">Connect Gmail →</a>
         <button class="btn" disabled title="Coming soon" style="opacity:.4;cursor:not-allowed;">Connect Outlook (soon)</button>
         <button class="btn" id="icloudBtn" style="cursor:pointer;">Connect iCloud →</button>
+        <button class="btn" id="demoBtn" style="cursor:pointer;">Try the demo inbox →</button>
       </div>
+      <p style="font-size:12px;color:var(--muted);text-align:center;margin:10px 0 0;">The demo is sample mail. No account, nothing real is touched.</p>
       <form id="icloudForm" style="display:none;margin:12px auto 0;max-width:320px;text-align:left;">
         <p style="font-size:13px;color:var(--muted);margin:0 0 8px;">iCloud has no sign-in flow like Gmail. Use an <a href="https://support.apple.com/en-us/102654" target="_blank" rel="noopener">app-specific password</a>, not your Apple ID password.</p>
         <input name="email" type="email" placeholder="you@icloud.com" required style="width:100%;padding:10px;margin-bottom:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:14px;">
@@ -330,6 +332,13 @@ footer.foot .foot-rule>:first-child{order:0}footer.foot .foot-rule>:last-child{o
         <button type="submit" class="btn" style="cursor:pointer;">Connect →</button>
         <p id="icloudErr" style="color:var(--accent);font-size:13px;margin:8px 0 0;"></p>
       </form>`;
+    document.getElementById('demoBtn').addEventListener('click', async () => {
+      const r = await fetch('/auth/demo', { method: 'POST' });
+      if (!r.ok) return;
+      const { token } = await r.json();
+      localStorage.setItem('sieve_token', token);
+      location.reload();
+    });
     document.getElementById('icloudBtn').addEventListener('click', () => {
       document.getElementById('icloudForm').style.display = 'block';
     });
