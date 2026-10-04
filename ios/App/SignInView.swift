@@ -10,7 +10,7 @@ struct SignInView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("Hagaki reads your inbox, scores the junk, and clears it in a tap. It only acts when you tap.")
+                    Text("Hagaki reads your inbox and files it into seven folders: receipts, travel, dev, newsletters, social, promotions and junk. People stay in your inbox. Nothing is deleted, and nothing moves until you tap.")
                         .foregroundStyle(.secondary)
                 }
                 Section("Sign in") {
