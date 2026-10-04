@@ -7,13 +7,13 @@ const GOOGLE_AUTH = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN = "https://oauth2.googleapis.com/token";
 const GMAIL = "https://gmail.googleapis.com/gmail/v1/users/me";
 const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.modify";
-const GOOGLE_REDIRECT = "https://siftbox.heyitsmejosh.com/auth/callback"; // registered in GCP console, don't change
+const GOOGLE_REDIRECT = "https://hagaki.heyitsmejosh.com/auth/callback"; // registered in GCP console (Web client 1), pare/siftbox/sieve stay registered too
 
 const MS_AUTH = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize";
 const MS_TOKEN = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
 const GRAPH = "https://graph.microsoft.com/v1.0/me";
 const MS_SCOPE = "offline_access Mail.ReadWrite";
-const MS_REDIRECT = "https://siftbox.heyitsmejosh.com/auth/callback/outlook";
+const MS_REDIRECT = "https://hagaki.heyitsmejosh.com/auth/callback/outlook";
 
 const IMAP_HOST = "imap.mail.me.com";
 const IMAP_PORT = 993;
