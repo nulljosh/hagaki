@@ -108,7 +108,9 @@ if (/[?&]embed\b/.test(location.search)) document.documentElement.classList.add(
   .hero .brand{justify-content:center;margin-bottom:20px}
   .hero .brand img{width:64px;height:64px;border-radius:14px}
   .hero .brand span{font-size:30px}
-  .hero .postcode{margin-bottom:26px}
+  .hero .postcode{margin-bottom:8px;text-decoration:none}
+  .postcode-cap{display:block;margin-bottom:26px;font-size:12px;letter-spacing:.08em;color:var(--muted);text-decoration:none}
+  .postcode-cap:hover{color:var(--accent)}
   .hero h1{margin:0 0 16px}
   .hero .lede{margin:0 auto 28px}
   .vert{position:absolute;z-index:1;top:50%;right:max(20px,calc(50% - 470px));transform:translateY(-50%);writing-mode:vertical-rl;font-size:30px;letter-spacing:.5em;font-weight:300;color:var(--accent);opacity:.85;user-select:none}
@@ -134,7 +136,8 @@ if (/[?&]embed\b/.test(location.search)) document.documentElement.classList.add(
   <div class="vert" aria-hidden="true" lang="ja">葉書</div>
   <div class="inner">
     <div class="brand"><img src="icon.svg" alt=""><span>Hagaki</span></div>
-    <div class="postcode" aria-hidden="true"><span class="mark">〒</span><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <a class="postcode" href="#name" aria-label="Seven boxes, seven folders. Why the name?"><span class="mark" aria-hidden="true">〒</span><i></i><i></i><i></i><i></i><i></i><i></i><i></i></a>
+    <a class="postcode-cap" href="#name">Seven boxes, seven folders</a>
     <h1>Every letter<br>in its box.</h1>
     <p class="lede">Hagaki reads your Gmail or iCloud inbox and files it into seven folders. Receipts, travel, dev, newsletters, social, promotions and junk. Nothing is deleted. People stay in your inbox.</p>
     <p><a class="btn primary" href="#inbox">Try the demo</a></p>
