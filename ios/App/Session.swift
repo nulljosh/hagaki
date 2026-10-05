@@ -23,6 +23,7 @@ enum Keychain {
 @MainActor
 final class Session: ObservableObject {
     @Published private(set) var token: String?
+    @Published private(set) var label = "Inbox"
     @Published var busy = false
     @Published var error: String?
 
@@ -34,13 +35,13 @@ final class Session: ObservableObject {
 
     func signOut() { store(nil) }
 
-    func demo() async { await run { try await Auth.demo() } }
+    func demo() async { label = "Demo inbox"; await run { try await Auth.demo() } }
     /// Mail.app mode keeps a server token for /api/sort, prefixed so the inbox knows to read Mail.app.
     func macMail() async { await run { "mac:" + (try await Auth.mac()) } }
     var isMacMail: Bool { token?.hasPrefix("mac:") ?? false }
-    func icloud(email: String, appPassword: String) async { await run { try await Auth.icloud(email: email, appPassword: appPassword) } }
+    func icloud(email: String, appPassword: String) async { label = email; await run { try await Auth.icloud(email: email, appPassword: appPassword) } }
     func gmail() {
-        busy = true
+        label = "Gmail"; busy = true
         GoogleAuth.shared.connect { [weak self] t in
             Task { @MainActor in
                 self?.busy = false

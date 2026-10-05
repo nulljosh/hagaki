@@ -19,6 +19,31 @@ enum MacMail {
         "\"" + s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
     }
 
+    struct Account: Identifiable { let name: String; let count: Int; let isGmail: Bool; var id: String { name } }
+
+    /// Every account Mail.app knows, with its inbox size. Gmail ones are listed but cannot be cleared from here.
+    static func accounts() throws -> [Account] {
+        let out = try run("""
+        set us to (ASCII character 31)
+        set rs to (ASCII character 30)
+        set out to ""
+        tell application "Mail"
+            repeat with a in every account
+                set n to 0
+                try
+                    set n to count of messages of mailbox "INBOX" of a
+                end try
+                set out to out & (name of a) & us & (server name of a) & us & n & rs
+            end repeat
+        end tell
+        return out
+        """)
+        return out.components(separatedBy: rowSep).compactMap { row in
+            let f = row.components(separatedBy: sep)
+            return f.count == 3 ? Account(name: f[0], count: Int(f[2]) ?? 0, isGmail: f[1].lowercased().contains("gmail")) : nil
+        }
+    }
+
     /// Every inbox message in every non-Gmail account. The id is "account<US>message id".
     static func inbox() throws -> [MailItem] {
         let out = try run("""

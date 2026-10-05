@@ -7,26 +7,58 @@ struct SimpleInboxView: View {
     @State private var count: Int?
     @State private var busy = false
     @State private var line = ""
+    @State private var gmailLeft = 0
+    @State private var accounts: [(name: String, count: Int, note: String?)] = []
+
+    private let ink = Color(red: 0.71, green: 0.31, blue: 0.17)
+
+    /// White in light mode, the system dark in dark mode.
+    private let paper = Color(nsColor: .textBackgroundColor)
 
     var body: some View {
-        VStack(spacing: 18) {
-            Spacer()
-            Text(count.map { $0 == 0 ? "Inbox zero" : "\($0)" } ?? " ")
-                .font(.system(size: 72, weight: .semibold, design: .rounded))
-                .foregroundStyle(count == 0 ? Color.accentColor : .primary)
-            Text(count == 0 ? "Nothing left to do." : "in your inbox")
-                .font(.title3).foregroundStyle(.secondary)
-            Button { Task { await clear() } } label: {
-                Text(busy ? "Clearing..." : "Clear inbox").frame(width: 180)
+        ZStack(alignment: .bottomTrailing) {
+            paper.ignoresSafeArea()
+            VStack(spacing: 20) {
+                Spacer()
+                Text(count.map { $0 + gmailLeft == 0 ? "Inbox zero" : "\($0 + gmailLeft)" } ?? " ")
+                    .font(.system(size: shownZero ? 64 : 120, weight: .semibold))
+                    .accessibilityIdentifier("count")
+                    .foregroundStyle(shownZero ? ink : .primary)
+                    .contentTransition(.numericText())
+                Text(shownZero ? "Nothing left to do." : (count == 0 ? "Gmail can't be cleared from Mail. Sign in to Gmail." : "in your inbox"))
+                    .font(.title2).foregroundStyle(.secondary)
+                Button { Task { await clear() } } label: {
+                    Text(busy ? "Clearing..." : "Clear inbox").font(.title3.weight(.semibold)).frame(width: 260, height: 32)
+                }
+                .controlSize(.extraLarge).buttonStyle(.borderedProminent)
+                .disabled(busy || (count ?? 0) == 0)
+                .padding(.top, 8)
+                .accessibilityIdentifier("clear")
+                if !accounts.isEmpty {
+                    VStack(spacing: 6) {
+                        ForEach(accounts, id: \.name) { a in
+                            HStack {
+                                Text(a.name)
+                                if let note = a.note { Text(note).foregroundStyle(.tertiary) }
+                                Spacer()
+                                Text("\(a.count)").monospacedDigit()
+                            }
+                            .foregroundStyle(a.note == nil ? .primary : .secondary)
+                        }
+                    }
+                    .font(.callout).frame(width: 260).padding(.top, 6)
+                }
+                Text(line).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(height: 44)
+                    .accessibilityIdentifier("result")
+                Spacer()
             }
-            .controlSize(.large).buttonStyle(.borderedProminent)
-            .disabled(busy || (count ?? 0) == 0)
-            Text(line).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(height: 36)
-            Spacer()
-            Button("Sign out") { session.signOut() }.buttonStyle(.link).font(.footnote)
+            .padding(40)
+            .frame(maxWidth: .infinity)
+            Button("Sign out") { session.signOut() }
+                .buttonStyle(.plain).accessibilityIdentifier("signout").font(.callout).foregroundStyle(.secondary)
+                .padding(20)
         }
-        .padding(32)
-        .frame(minWidth: 380, minHeight: 420)
+        .frame(minWidth: 480, minHeight: 560)
         .task(id: session.token) { await load() }
     }
 
@@ -42,8 +74,10 @@ struct SimpleInboxView: View {
         return try await api.messages()
     }
 
+    private var shownZero: Bool { count != nil && (count ?? 0) + gmailLeft == 0 }
+
     private func load() async {
-        do { count = try await inbox().count; line = "" } catch { line = error.localizedDescription }
+        do { count = try await inbox().count; line = ""; try refreshAccounts() } catch { line = error.localizedDescription }
         if CommandLine.arguments.contains("-hagakiClear"), (count ?? 0) > 0 { await clear() }
     }
 
@@ -58,8 +92,23 @@ struct SimpleInboxView: View {
             moved = try await clearAccount(messages)
             #endif
             count = try await inbox().count
+            try refreshAccounts()
             line = "Filed \(moved). Machine mail is in its Hagaki box, people are in Archive. Nothing was deleted."
         } catch { line = error.localizedDescription }
+    }
+
+    /// Mail.app mode lists every account on the Mac; otherwise the one account you signed in with.
+    private func refreshAccounts() throws {
+        #if DEBUG
+        if session.isMacMail {
+            let all = try MacMail.accounts()
+            gmailLeft = all.filter(\.isGmail).map(\.count).reduce(0, +)
+            accounts = all.map { ($0.name, $0.count, $0.isGmail ? "Gmail" : nil) }
+            return
+        }
+        #endif
+        gmailLeft = 0
+        accounts = [(session.label, count ?? 0, nil)]
     }
 
     private func clearAccount(_ messages: [Message]) async throws -> Int {

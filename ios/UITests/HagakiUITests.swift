@@ -4,6 +4,23 @@ import XCTest
 final class HagakiUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
+    #if os(macOS)
+    /// The Mac app is one number and one button: clear the demo inbox, then sign out.
+    func testDemoClearsInboxThenSignsOut() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-hagakiDemo"]
+        app.launch()
+        let clear = app.buttons["clear"]
+        XCTAssertTrue(clear.waitForExistence(timeout: 20), "inbox never loaded")
+        XCTAssertEqual(app.staticTexts["count"].label, "10")
+        clear.tap()
+        let result = app.staticTexts["result"]
+        XCTAssertTrue(NSPredicate(format: "label CONTAINS 'Nothing was deleted'").evaluate(with: result) || result.waitForExistence(timeout: 20))
+        XCTAssertTrue(app.staticTexts["Inbox zero"].waitForExistence(timeout: 20), "inbox did not clear")
+        app.buttons["signout"].tap()
+        XCTAssertTrue(app.buttons["Try the demo inbox"].waitForExistence(timeout: 10), "sign out did not return to sign-in")
+    }
+    #else
     func testDemoFilesEverythingThenSignsOut() {
         let app = XCUIApplication()
         app.launchArguments = ["-hagakiDemo"]
@@ -38,4 +55,5 @@ final class HagakiUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Continue with Gmail"].exists)
         XCTAssertTrue(app.buttons["Continue with iCloud Mail"].exists)
     }
+    #endif
 }

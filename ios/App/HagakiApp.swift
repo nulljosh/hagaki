@@ -26,7 +26,7 @@ struct HagakiApp: App {
             }
         }
         #if os(macOS)
-        .defaultSize(width: 880, height: 760)
+        .defaultSize(width: 560, height: 640)
         #endif
     }
 }
