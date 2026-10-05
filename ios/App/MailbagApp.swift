@@ -93,6 +93,29 @@ final class MacWindow: NSObject, NSApplicationDelegate {
         }
         if window?.isMiniaturized == true { window?.deminiaturize(nil) }
         window?.makeKeyAndOrderFront(nil)
+        #if DEBUG
+        snapshotIfAsked()
+        #endif
     }
+
+    #if DEBUG
+    /// `-shot NAME -shotDelay 8` writes NAME.png, the window drawn at 4x, into the app's temp folder.
+    /// Store screenshots need retina pixels and this Mac's display is 1x.
+    private func snapshotIfAsked() {
+        guard let name = UserDefaults.standard.string(forKey: "shot"), let frame = window?.contentView?.superview else { return }
+        let delay = max(UserDefaults.standard.double(forKey: "shotDelay"), 1)
+        // take focus just before the shot, so the window is drawn in its active colours
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay - 0.8) { NSApp.activate(ignoringOtherApps: true); self.window?.makeKeyAndOrderFront(nil) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            let size = frame.bounds.size, scale = 4
+            guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width) * scale, pixelsHigh: Int(size.height) * scale,
+                                             bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                             colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return }
+            rep.size = size
+            frame.cacheDisplay(in: frame.bounds, to: rep)
+            try? rep.representation(using: .png, properties: [:])?.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("\(name).png"))
+        }
+    }
+    #endif
 }
 #endif
