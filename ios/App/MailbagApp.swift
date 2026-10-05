@@ -41,6 +41,9 @@ struct MailbagApp: App {
         #if os(macOS)
         .windowResizability(.contentSize)
         .windowStyle(.hiddenTitleBar)
+        // One window, always there. Without this a launch that restores "no windows" opens nothing.
+        .defaultLaunchBehavior(.presented)
+        .restorationBehavior(.disabled)
         #endif
         #if os(macOS)
         Settings { SettingsView().environmentObject(session).tint(brandBlue) }

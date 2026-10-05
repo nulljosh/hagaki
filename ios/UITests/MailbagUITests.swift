@@ -17,7 +17,13 @@ final class MailbagUITests: XCTestCase {
         app.launchArguments = ["-demo", "YES"]
         app.launch()
         let clear = app.buttons["clear"]
-        if !clear.waitForExistence(timeout: 20) { print("DBG-START\n" + app.debugDescription + "\nDBG-END") }
+        // Launched by the test runner the app can come up with no window (a normal launch always has one,
+        // checked by hand; cause not found). Cmd-N opens it, which is also what a user would do.
+        if !clear.waitForExistence(timeout: 10) {
+            app.activate()
+            app.typeKey("n", modifierFlags: .command)
+            _ = clear.waitForExistence(timeout: 15)
+        }
         XCTAssertTrue(clear.exists, "inbox never loaded")
         // SwiftUI on the Mac puts a Text's string in `value`, not `label`
         let count = app.staticTexts["count"]
@@ -42,7 +48,9 @@ final class MailbagUITests: XCTestCase {
         XCTAssertTrue(signOut.exists, "settings did not open")
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "value == 'Demo inbox' OR label == 'Demo inbox'")).firstMatch.exists, "settings should list the account")
         signOut.click()
-        XCTAssertTrue(app.buttons["Try the demo inbox"].waitForExistence(timeout: 10), "sign out did not return to sign-in")
+        let demo = app.descendants(matching: .any)["demo"]
+        if !demo.waitForExistence(timeout: 10) { print("DBG-START\n" + app.debugDescription + "\nDBG-END") }
+        XCTAssertTrue(demo.exists, "sign out did not return to sign-in")
     }
     #else
     func testDemoFilesEverythingThenSignsOut() {

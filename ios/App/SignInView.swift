@@ -47,6 +47,7 @@ struct SignInView: View {
 
             Button("Try the demo inbox") { Task { await session.demo() } }
                 .buttonStyle(.link).padding(.top, 16)
+                .accessibilityIdentifier("demo")
 
             if let error = session.error {
                 Text(error).font(.callout).foregroundStyle(.red).multilineTextAlignment(.center).padding(.top, 14)
