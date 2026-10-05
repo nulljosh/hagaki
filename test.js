@@ -81,6 +81,7 @@ console.log('iCloud archive results and connection cleanup: ok');
   assert.equal(mail('Shop <orders@shop.example>', 'Your Shop order has been received!'), 'Receipts');
   assert.equal(mail('Jordi <a@creators.gumroad.com>', 'MacWhisper 15.2'), 'Newsletters');
   assert.equal(mail('Jeremy <sysadmin@myeducation.gov.bc.ca>', 'Online Fall Start-Up 2026'), 'Inbox');
+  assert.equal(mail('Google <no-reply@accounts.google.com>', 'Security alert for you@gmail.com'), 'Dev');
   assert.equal(mail('GitGuardian <security@getgitguardian.com>', 'Password exposed on GitHub'), 'Dev');
   assert.equal(mail('Bad <a@bad.example>', 'x', { isJunk: true }), 'Junk');
   assert.deepEqual(JSON.parse(JSON.stringify(ctx.groupByFolder([{ messageId: 'a', category: 'Dev' }, { messageId: 'b', category: 'Inbox' }, { messageId: 'c', category: 'Dev' }]))), { Dev: ['a', 'c'] });

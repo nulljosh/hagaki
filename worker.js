@@ -91,7 +91,7 @@ function scoreMessage({ from, replyTo, subject, snippet, listUnsubscribe }) {
 const FOLDER_PARENT = "Mailbag";
 const FOLDERS = ["Receipts", "Travel", "Dev", "Newsletters", "Social", "Promotions", "Junk"];
 const DEV = /(?:github|gitlab|vercel|sentry|cloudflare|supabase|netlify|npmjs|circleci|atlassian|linear|appstoreconnect|itunesconnect|developer\.apple|testflight|twilio|kaggle|apify|getgitguardian)\./i;
-const DEV_WORDS = /\b(build (?:failed|succeeded)|deploy(?:ment)?|pull request|workflow run|app store connect|testflight|new sign-in|your [^.]{1,60} submission|uploaded build|available to test|invited you to test|webhook)\b/i;
+const DEV_WORDS = /\b(build (?:failed|succeeded)|deploy(?:ment)?|pull request|workflow run|app store connect|testflight|new sign-in|your [^.]{1,60} submission|uploaded build|available to test|invited you to test|webhook|security alert)\b/i;
 const RECEIPT = /\b(receipts?|invoices?|your order|order confirmation|payment|statement|billing|renewal|charged|bill is ready|order (?:has been )?(?:received|confirmed|shipped))\b/i;
 const PAYMENTS = /(?:stripe|paypal|square|squareup|shopify|venmo)\./i;
 const TRAVEL = /\b(flights?|boarding pass|itinerary|booking confirmation|reservation|hotel|check-in)\b/i;
