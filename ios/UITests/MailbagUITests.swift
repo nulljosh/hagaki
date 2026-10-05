@@ -17,13 +17,8 @@ final class MailbagUITests: XCTestCase {
         app.launchArguments = ["-demo", "YES"]
         app.launch()
         let clear = app.buttons["clear"]
-        // Launched by the test runner the app can come up with no window (a normal launch always has one,
-        // checked by hand; cause not found). Cmd-N opens it, which is also what a user would do.
-        if !clear.waitForExistence(timeout: 10) {
-            app.activate()
-            app.typeKey("n", modifierFlags: .command)
-            _ = clear.waitForExistence(timeout: 15)
-        }
+        // The test runner launches the app without bringing it forward. It must still have its window.
+        _ = clear.waitForExistence(timeout: 20)
         XCTAssertTrue(clear.exists, "inbox never loaded")
         // SwiftUI on the Mac puts a Text's string in `value`, not `label`
         let count = app.staticTexts["count"]

@@ -16,9 +16,11 @@ Connect Gmail or iCloud and Mailbag reads your inbox. Press Clear inbox. Machine
 
 In Gmail the folders are labels under a label called Mailbag. In iCloud they are real folders. File everything is the gentler button. It files the machine mail and leaves people where they are.
 
-It sorts twice. Plain rules go first: they know a receipt, a build alert and a boarding pass. A small model on Cloudflare reads the sender and subject of what is left and catches the cold pitches and promos the rules miss. A marketplace buyer or a collections notice never goes to the model.
+It sorts twice. Plain rules go first: they know a receipt, a build alert and a boarding pass. A small model on Cloudflare then reads the sender and subject of machine mail the rules could not place.
 
-Nothing is deleted. Junk gets a folder too. Delete is its own button, and in Gmail it goes to Trash. Unsubscribe sends the sender's own one-click request. The list is a preview, and nothing moves until you press a button.
+Mail with no sign of a machine is treated as a person. No unsubscribe link, no no-reply address, no bulk label. It is never filed and never shown to the model. Debt and legal notices are never filed either. The sorter can still be wrong about machine mail. That is why nothing is deleted.
+
+Nothing is deleted. Junk is only for mail that looks like a scam, and it gets a folder too. Delete is its own button, and in Gmail it goes to Trash. Unsubscribe sends the sender's own one-click request. The list is a preview, and nothing moves until you press a button.
 
 The Claude Code side (`/mail`) still exists for the dev-tool-alert half of the job — matching an App Store Connect or GitHub Actions email to the right project and fixing or filing it — since that needs a coding agent, not a mail client. The two share the same spam-scoring rules.
 

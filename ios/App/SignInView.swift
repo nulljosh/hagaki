@@ -4,7 +4,7 @@ import SwiftUI
 let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Mail"
 
 private let pitch = "Machine mail goes into seven folders. People go to your archive. Nothing is deleted, and nothing moves until you press a button."
-private let aiNote = "To sort what the rules cannot, the sender, subject and a short preview go to a language model on our server. You can turn that off in Settings."
+private let aiNote = "To sort machine mail the rules cannot place, its sender, subject and a short preview go to a language model on our server. Mail from people is never sent. You can turn that off in Settings."
 
 struct SignInView: View {
     @EnvironmentObject var session: Session

@@ -75,15 +75,16 @@ function scoreMessage({ from, replyTo, subject, snippet, listUnsubscribe }) {
   const fromDomain = domainOf(from);
   const displayName = (from.match(/^"?([^"<]*)"?\s*</) || [, ""])[1].trim();
 
-  if (displayName && !KNOWN_SERVICES.test(fromDomain) && /paypal|apple|amazon|bank|google|microsoft/i.test(displayName) && !fromDomain.includes(displayName.toLowerCase().split(" ")[0])) {
-    score += 2; reasons.push("sender name/domain mismatch");
-  }
+  const mismatch = !!displayName && !KNOWN_SERVICES.test(fromDomain) && /paypal|apple|amazon|bank|google|microsoft/i.test(displayName) && !fromDomain.includes(displayName.toLowerCase().split(" ")[0]);
+  if (mismatch) { score += 2; reasons.push("sender name/domain mismatch"); }
   if (URGENCY.test(subject) || URGENCY.test(snippet)) { score += 1; reasons.push("urgency language"); }
   if (/dear (customer|user|member)/i.test(snippet)) { score += 1; reasons.push("generic bulk greeting"); }
-  if (listUnsubscribe && !KNOWN_SERVICES.test(fromDomain)) { score += 1; reasons.push("unsubscribe header, unfamiliar sender"); }
   if (replyTo && domainOf(replyTo) && domainOf(replyTo) !== fromDomain) { score += 1; reasons.push("reply-to domain differs"); }
 
-  return { score, reasons, isJunk: score >= 2 && !KNOWN_SERVICES.test(fromDomain) };
+  // Junk means it looks like a scam, not that it is bulk. A sender that offers an unsubscribe link and is not
+  // pretending to be someone else is a promotion or a newsletter, however pushy. Scams rarely offer one.
+  const bulk = !!listUnsubscribe && !mismatch;
+  return { score, reasons, isJunk: score >= 2 && !bulk && !KNOWN_SERVICES.test(fromDomain) };
 }
 
 // --- smart folders: seven of them, one per kind of machine mail ---
@@ -101,8 +102,31 @@ const PROMO_WORDS = /\b(sale|\d+% off|deals?|offers?|coupon|discount|free shippi
 const LETTER_SITES = /(?:substack|medium|beehiiv|gumroad|mailchimp|convertkit|buttondown)\./i;
 const LETTER_WORDS = /\b(newsletter|digest|weekly|monthly|issue #?\d+)\b/i;
 
+// Debts, collections and legal notices need a human. They are never filed, whoever sends them.
+// ponytail: a short word list, extend it when a miss shows up. A false hit only leaves mail in the inbox.
+const NEEDS_YOU = /\bcollections?\b|\bdebt\b|\boverdue\b|\bpast[- ]due\b|\bcourt\b|\bsummons\b|\blegal notice\b|\bfinal demand\b/i;
+
+// Signs that a machine sent it: an unsubscribe header, a Gmail bulk label, a no-reply style address, or a
+// domain the rules already know. Mail with none of these is treated as written by a person.
+const AUTOMATED_LOCAL = /(?:^|[._+-])(?:info|hello|hi|news|updates?|support|help|team|orders?|receipts?|invoices?|statements?|sales|marketing|bounces?|admin|security|accounts?|service|contact|robot|automated|system|digest|feedback|alerts?|notify|welcome|rewards|membership)(?:$|[._+-])|no[._-]?reply|do[._-]?not[._-]?reply|notification|newsletter|billing|mailer/i;
+function looksAutomated({ from, listUnsubscribe, labelIds = [] }) {
+  if (listUnsubscribe) return true;
+  if (labelIds.some((l) => /^CATEGORY_(?:PROMOTIONS|SOCIAL|UPDATES|FORUMS)$/.test(l))) return true;
+  const address = ((from || "").match(/<([^>]+)>/) || [, from || ""])[1].trim();
+  const d = domainOf(from || "");
+  if (AUTOMATED_LOCAL.test(address.split("@")[0])) return true;
+  return KNOWN_SERVICES.test(d) || [DEV, PAYMENTS, TRAVEL_SITES, SOCIAL, LETTER_SITES].some((re) => re.test(d + "."));
+}
+
+// Only machine mail that asks nothing urgent of the user may be put in a folder, by the rules or by the model.
+function fileable(m) {
+  return !NEEDS_YOU.test(`${m.from || ""} ${m.subject || ""}`) && looksAutomated(m);
+}
+
 function categorize({ from, subject, snippet, listUnsubscribe, isJunk, labelIds = [] }) {
   if (isJunk) return "Junk";
+  // People are never filed: no sign of a machine, no folder.
+  if (!fileable({ from, subject, listUnsubscribe, labelIds })) return "Inbox";
   const d = domainOf(from) + ".";
   const text = `${subject || ""} ${snippet || ""}`;
   if (DEV.test(d) || DEV_WORDS.test(subject || "")) return "Dev";
@@ -461,12 +485,12 @@ function demoList() {
 // ponytail: one call, first 30 leftovers, fails open (rules result stands). Add paging if inboxes outgrow it.
 const LLM_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 async function llmRefine(env, items) {
-  // marketplace replies are people and collections notices need a human: the model never gets a vote on them
-  const left = items.filter((m) => m.category === "Inbox" && !/reply\.craigslist\.org|collections?\./i.test(m.from || "")).slice(0, 30);
+  // People and anything that needs a human never reach the model. It only gets machine mail the rules could not place.
+  const left = items.filter((m) => m.category === "Inbox" && fileable(m)).slice(0, 30);
   if (!env.AI || !left.length) return items;
   const list = left.map((m, i) => `${i}. from: ${m.from} | subject: ${m.subject} | ${(m.snippet || "").slice(0, 120)}`).join("\n");
   const prompt = `Sort each email into exactly one of: ${FOLDERS.join(", ")}, Inbox.
-Inbox = a real person writing to the user personally (friends, family, a human reply). Cold sales outreach, growth-hack pitches, "saw your app" spam = Junk. Promo from a store = Promotions. Product or service system notices (support tickets, badges, 2FA) = Dev. A short or odd subject from an individual (a marketplace buyer replying, a relative) is a person: Inbox. School, government, debt or account notices that need the user to act: Inbox. When unsure: Inbox. Reply with only a JSON array like [{"i":0,"c":"Junk"}].
+Every email below was sent by a machine or a company address. Cold sales outreach, growth-hack pitches, "saw your app" spam = Junk. Promo from a store = Promotions. Product or service system notices (support tickets, badges, 2FA) = Dev. School, government, bank, debt or account notices that need the user to act: Inbox. When unsure: Inbox. Reply with only a JSON array like [{"i":0,"c":"Junk"}].
 ${list}`;
   try {
     const r = await env.AI.run(LLM_MODEL, { messages: [{ role: "user", content: prompt }], max_tokens: 800 });
@@ -483,6 +507,23 @@ function sortItems(items) {
     const scored = scoreMessage({ from, replyTo: "", subject, snippet, listUnsubscribe: "" });
     return { id: String(id), from, subject, snippet, ...scored, category: categorize({ from, subject, snippet, listUnsubscribe: "", isJunk: scored.isJunk }), listUnsubscribe: "", oneClick: false };
   });
+}
+
+// The address a session belongs to, so a Mac with several accounts can tell its sign-ins apart.
+async function whoami(session) {
+  if (session.provider === "icloud") return session.email || "";
+  if (session.provider === "outlook") {
+    const r = await graphFetch(session, "?$select=mail,userPrincipalName");
+    if (!r.ok) throw new Error(`outlook profile failed: ${r.status}`);
+    const me = await r.json();
+    return me.mail || me.userPrincipalName || "";
+  }
+  if (session.provider === "gmail") {
+    const r = await gmailFetch(session, "/profile");
+    if (!r.ok) throw new Error(`gmail profile failed: ${r.status}`);
+    return (await r.json()).emailAddress || "";
+  }
+  return ""; // demo and Mail.app sessions have no mailbox of their own
 }
 
 // ======================= dispatch =======================
@@ -630,6 +671,19 @@ export default {
     }
 
     // --- mail API, session-gated ---
+    if (pathname === "/api/whoami" && request.method === "GET") {
+      const id = sessionIdFromRequest(request);
+      let session = await getSession(env, id);
+      if (!session) return new Response("not connected", { status: 401 });
+      session = await refreshIfNeeded(env, id, session);
+      if (!session) return new Response("session expired", { status: 401 });
+      try {
+        return Response.json({ provider: session.provider, email: await whoami(session) });
+      } catch (e) {
+        return new Response(String(e), { status: 502 });
+      }
+    }
+
     if (pathname === "/api/messages" && request.method === "GET") {
       const id = sessionIdFromRequest(request);
       let session = await getSession(env, id);

@@ -26,6 +26,13 @@ for (archiveOk of [false, true]) {
   assert.equal(result.archived, archiveOk);
   assert.equal(result.unsubscribed, false);
 }
+// Junk means scam signs. Bulk mail with an unsubscribe link and no impersonation is never junk, however pushy.
+{
+  const tsi = { from: 'TSI Canada <bell@collections.tsico.ca>', replyTo: 'help@tsico.example', subject: 'JOSHUA - Helpful options to resolve your Bell account with TSI!', snippet: 'Act now to avoid further action.', listUnsubscribe: '<https://x>' };
+  assert.equal(scoreMessage(tsi).isJunk, false, 'a collections notice is not junk');
+  assert.equal(scoreMessage({ ...tsi, from: 'PayPal <pay@tsico.example>' }).isJunk, true, 'impersonation is junk even with an unsubscribe link');
+  assert.equal(scoreMessage({ from: 'Shop <deals@shop.example>', replyTo: '', subject: 'Limited time', snippet: 'Dear customer', listUnsubscribe: '<https://x>' }).isJunk, false, 'a pushy promo is not junk');
+}
 console.log('sender scoring and archive results: ok');
 
 for (const archived of [false, true]) {
@@ -50,9 +57,9 @@ console.log('iCloud archive results and connection cleanup: ok');
 // demo inbox: real scorer over sample mail, and actions never leave the worker
 {
   const demo = demoList();
-  assert.ok(demo.filter(m => m.isJunk).length >= 3, 'demo has junk');
+  assert.ok(demo.filter(m => m.isJunk).length >= 2, 'demo has junk');
   assert.ok(demo.filter(m => !m.isJunk).length >= 3, 'demo has legit mail');
-  assert.equal(demo.filter(m => m.isJunk && m.listUnsubscribe && m.from.includes('dealdrop')).length, 2, 'repeat sender for the rollup');
+  assert.equal(demo.filter(m => m.category === 'Promotions' && m.listUnsubscribe && m.from.includes('dealdrop')).length, 2, 'repeat sender for the rollup');
   assert.equal(JSON.stringify(performAction({ provider: 'demo' }, { action: 'archive' })), JSON.stringify({ demo: true, archived: true }));
 }
 
@@ -75,6 +82,16 @@ console.log('iCloud archive results and connection cleanup: ok');
   assert.equal(mail('Shop <a@shop.example>', '50% off today', { listUnsubscribe: '<https://x>' }), 'Promotions');
   assert.equal(mail('Letter <a@weekly.example>', 'Issue 42', { listUnsubscribe: '<https://x>' }), 'Newsletters');
   assert.equal(mail('Sam <sam@example.org>', 'Lunch Thursday?'), 'Inbox');
+  // people are never filed, whatever the subject says
+  assert.equal(mail('Mom <mom@shaw.example>', 'Fwd: Tutoring Invoice - September 2026'), 'Inbox');
+  assert.equal(mail('k c <39f139f41f3b3456@reply.craigslist.org>', 'CanonPRINTER'), 'Inbox');
+  assert.equal(mail('Jolene Bose <JBose@sd35.example>', 'Your flight itinerary and payment'), 'Inbox');
+  // debts and legal notices are never filed, even from a bulk sender
+  assert.equal(mail('TSI Canada <bell@collections.tsico.ca>', 'Helpful options to resolve your account', { listUnsubscribe: '<https://x>' }), 'Inbox');
+  assert.equal(mail('Billing <billing@utility.example>', 'Your account is past due', { listUnsubscribe: '<https://x>' }), 'Inbox');
+  // machine signs are what make mail fileable
+  assert.equal(mail('TELUS <telusbilling@info.telus.example>', 'Your mobility e.Bill is ready'), 'Receipts');
+  assert.equal(mail('Someone <someone@gmail.example>', 'Your receipt', { labelIds: ['CATEGORY_UPDATES'] }), 'Receipts');
   assert.equal(mail('App Store Connect <no_reply@email.apple.com>', 'Review of your Talli (macOS) submission is complete.'), 'Dev');
   assert.equal(mail('TestFlight <testflight_no_reply@email.apple.com>', 'Bookrank 1.1.0 for iOS is now available to test.'), 'Dev');
   assert.equal(mail('Stripe <notifications@stripe.com>', 'Stripe webhook delivery issues'), 'Dev');
@@ -107,16 +124,19 @@ console.log('smart folders: ok');
 }
 console.log('iCloud smart folders: ok');
 
-// LLM pass: only leftovers move, bad output and missing binding leave the rules result alone
+// LLM pass: only machine mail the rules left over may move; people and bad output are left alone
 {
   const ctx = runInNewContext(source + '\n;({ llmRefine });');
-  const mk = () => [{ category: 'Inbox', from: 'a', subject: 'x' }, { category: 'Dev', from: 'b', subject: 'y' }, { category: 'Inbox', from: 'c', subject: 'z' }];
-  const ai = (response) => ({ AI: { run: async () => ({ response }) } });
-  const out = await ctx.llmRefine(ai('sure: [{"i":0,"c":"Junk"},{"i":1,"c":"Bogus"}]'), mk());
-  assert.deepEqual(out.map(m => m.category), ['Junk', 'Dev', 'Inbox']);
-  assert.deepEqual((await ctx.llmRefine(ai('nonsense'), mk())).map(m => m.category), ['Inbox', 'Dev', 'Inbox']);
-  assert.deepEqual((await ctx.llmRefine(ai([{ i: 1, c: 'Promotions' }]), mk())).map(m => m.category), ['Inbox', 'Dev', 'Promotions']);
-  assert.deepEqual((await ctx.llmRefine({}, mk())).map(m => m.category), ['Inbox', 'Dev', 'Inbox']);
+  const mk = () => [{ category: 'Inbox', from: 'Upvote <hello@upvote.example>', subject: 'x' }, { category: 'Dev', from: 'b', subject: 'y' }, { category: 'Inbox', from: 'News <info@shop.example>', subject: 'z' }, { category: 'Inbox', from: 'Sam <sam@example.org>', subject: 'lunch' }, { category: 'Inbox', from: 'Agency <notify@agency.example>', subject: 'Your debt is overdue' }];
+  const cats = (items) => items.map(m => m.category);
+  let seen = '';
+  const ai = (response) => ({ AI: { run: async (_, { messages }) => { seen = messages[0].content; return { response }; } } });
+  // the model is only shown items 0 and 2, so its indexes are 0 and 1
+  assert.deepEqual(cats(await ctx.llmRefine(ai('sure: [{"i":0,"c":"Junk"},{"i":1,"c":"Bogus"},{"i":2,"c":"Junk"},{"i":3,"c":"Junk"}]'), mk())), ['Junk', 'Dev', 'Inbox', 'Inbox', 'Inbox']);
+  assert.ok(seen.includes('upvote.example') && !seen.includes('sam@example.org') && !seen.includes('agency.example'), 'people and debt notices never reach the model');
+  assert.deepEqual(cats(await ctx.llmRefine(ai([{ i: 1, c: 'Promotions' }]), mk())), ['Inbox', 'Dev', 'Promotions', 'Inbox', 'Inbox']);
+  assert.deepEqual(cats(await ctx.llmRefine(ai('nonsense'), mk())), ['Inbox', 'Dev', 'Inbox', 'Inbox', 'Inbox']);
+  assert.deepEqual(cats(await ctx.llmRefine({}, mk())), ['Inbox', 'Dev', 'Inbox', 'Inbox', 'Inbox']);
 }
 console.log('llm pass: ok');
 
@@ -127,3 +147,15 @@ console.log('llm pass: ok');
   assert.deepEqual(out.map(m => [m.id, m.category]), [['1', 'Dev'], ['b', 'Inbox']]);
 }
 console.log('mac sort: ok');
+
+// whoami: each provider answers with its own address, demo and Mail.app sessions with none
+{
+  const fetchMock = async (url) => ({ ok: true, json: async () => (url.includes('gmail') ? { emailAddress: 'me@gmail.example' } : { mail: '', userPrincipalName: 'me@outlook.example' }) });
+  const ctx = runInNewContext(source + '\n;({ whoami });', { fetch: fetchMock });
+  assert.equal(await ctx.whoami({ provider: 'gmail', access_token: 't' }), 'me@gmail.example');
+  assert.equal(await ctx.whoami({ provider: 'outlook', access_token: 't' }), 'me@outlook.example');
+  assert.equal(await ctx.whoami({ provider: 'icloud', email: 'me@icloud.example' }), 'me@icloud.example');
+  assert.equal(await ctx.whoami({ provider: 'demo' }), '');
+  assert.equal(await ctx.whoami({ provider: 'mac' }), '');
+}
+console.log('whoami: ok');

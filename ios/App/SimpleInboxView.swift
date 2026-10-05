@@ -12,7 +12,10 @@ struct SimpleInboxView: View {
     @State private var busy = false
     @State private var line = ""
     @State private var failed = false
+    /// Mail in Gmail accounts that Mail.app shows but nobody has signed in to yet.
     @State private var gmailLeft = 0
+    /// The unconnected Gmail address to offer in Google's chooser, if there is one.
+    @State private var gmailToConnect: String?
     @State private var clearAfterSignIn = false
     @State private var autoClear = launchFlag("clear")
 
@@ -52,6 +55,7 @@ struct SimpleInboxView: View {
         .fixedSize(horizontal: false, vertical: true)
         .task(id: session.token) { await load() }
         .onChange(of: aiSort) { Task { await load() } }
+        .onChange(of: session.gmailTokens) { Task { await load() } }
         // Mail is only read when you look: on launch and whenever the app comes forward.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             if !busy, !session.busy { Task { await load() } }
@@ -86,11 +90,18 @@ struct SimpleInboxView: View {
         if failed {
             bigButton("Try again") { Task { await load() } }
         } else if needsGmail {
-            bigButton("Sign in to Gmail") { clearAfterSignIn = true; session.gmail() }
+            bigButton("Sign in to Gmail") { clearAfterSignIn = true; session.addGmail(hint: gmailToConnect) }
                 .disabled(session.busy)
                 .accessibilityIdentifier("gmail")
         } else if isZero {
-            Button("Check again") { Task { await load() } }.buttonStyle(.link).accessibilityIdentifier("again")
+            VStack(spacing: 10) {
+                Button("Check again") { Task { await load() } }.buttonStyle(.link).accessibilityIdentifier("again")
+                // a Gmail account with an empty inbox still needs its sign-in before the next mail can be cleared
+                if let gmailToConnect {
+                    Button("Connect \(gmailToConnect)") { session.addGmail(hint: gmailToConnect) }
+                        .buttonStyle(.link).disabled(session.busy).accessibilityIdentifier("connect")
+                }
+            }
         } else {
             bigButton(busy ? "Clearing..." : "Clear inbox") { Task { await clear() } }
                 .disabled(busy || count == nil)
@@ -104,22 +115,54 @@ struct SimpleInboxView: View {
             .keyboardShortcut(.defaultAction)
     }
 
-    /// Mail.app mode reads the Mac's own inbox; otherwise the signed-in Gmail/iCloud account.
-    private func inbox() async throws -> [Message] {
+    /// One place mail comes from. `api` is nil for Mail.app itself, which is moved over Apple Events.
+    private struct Source { let api: API?; let messages: [Message] }
+
+    /// Every inbox this window covers. In Mail.app mode that is Mail's own non-Gmail accounts plus each
+    /// Gmail account that has been signed in to; otherwise the one signed-in account.
+    private func sources() async throws -> [Source] {
         guard let api = session.api else { return [] }
         #if DEBUG
         if session.isMacMail {
+            var out: [Source] = []
             let items = try MacMail.inbox()
-            return items.isEmpty ? [] : try await api.sort(items)
+            if !items.isEmpty { out.append(Source(api: nil, messages: try await sortInMailMode(items))) }
+            var unconnected: [(email: String, count: Int)] = []
+            for account in try MacMail.accounts() where account.isGmail {
+                guard let gmail = session.gmailAPI(for: account.email) else { unconnected.append((account.email, account.count)); continue }
+                do {
+                    let messages = try await gmail.messages()
+                    if !messages.isEmpty { out.append(Source(api: gmail, messages: messages)) }
+                } catch let error as APIError where error.message.hasPrefix("Session expired") {
+                    // that Gmail sign-in ran out: drop it and offer the sign-in again, the rest still works
+                    session.forgetGmail(account.email)
+                    unconnected.append((account.email, account.count))
+                }
+            }
+            gmailLeft = unconnected.map(\.count).reduce(0, +)
+            gmailToConnect = gmailToOffer(unconnected)
+            return out
         }
         #endif
-        return try await api.messages()
+        gmailLeft = 0; gmailToConnect = nil
+        let messages = try await api.messages()
+        return messages.isEmpty ? [] : [Source(api: api, messages: messages)]
     }
+
+    #if DEBUG
+    /// The Mail.app session only exists to call /api/sort and holds no mailbox, so when it runs out get a new one.
+    private func sortInMailMode(_ items: [MailItem]) async throws -> [Message] {
+        do { return try await session.api?.sort(items) ?? [] } catch let error as APIError where error.message.hasPrefix("Session expired") {
+            await session.macMail()
+            guard let api = session.api else { throw error }
+            return try await api.sort(items)
+        }
+    }
+    #endif
 
     private func load() async {
         do {
-            let n = try await inbox().count
-            try refreshAccounts()
+            let n = try await sources().map(\.messages.count).reduce(0, +)
             withAnimation { count = n }
             if failed { line = "" }
             failed = false
@@ -129,8 +172,8 @@ struct SimpleInboxView: View {
             if error.localizedDescription.hasPrefix("Session expired") { session.signOut(); return }
             failed = true; line = error.localizedDescription; return
         }
-        // `-clear`, or arriving from "Sign in to Gmail": an empty inbox was already asked for, so finish the job.
-        if (count ?? 0) > 0, autoClear || (clearAfterSignIn && !session.isMacMail) {
+        // `-clear YES`, or arriving from "Sign in to Gmail": an empty inbox was already asked for, so finish the job.
+        if (count ?? 0) > 0, autoClear || clearAfterSignIn {
             autoClear = false; clearAfterSignIn = false
             await clear()
         }
@@ -138,37 +181,43 @@ struct SimpleInboxView: View {
 
     private func clear() async {
         busy = true; defer { busy = false }
+        var filed = 0, archived = 0
         do {
-            let messages = try await inbox()
-            let filed = messages.filter { $0.folder != nil }.count
-            var moved = 0
-            #if DEBUG
-            if session.isMacMail { moved = try MacMail.clear(messages) } else { moved = try await clearAccount(messages) }
-            #else
-            moved = try await clearAccount(messages)
-            #endif
-            // ponytail: the demo inbox is fixed sample mail on the server, so a cleared demo is zero by definition
-            let after = try await inbox().count
-            try refreshAccounts()
-            withAnimation { count = session.isDemo ? 0 : after; failed = false }
-            line = "Filed \(min(filed, moved)), archived \(max(moved - filed, 0)). Nothing was deleted."
+            // Gmail hands over 30 at a time, so go round again until a pass moves nothing.
+            for _ in 0..<5 {
+                var moved = 0
+                for source in try await sources() {
+                    let (f, a) = try await clear(source)
+                    filed += f; archived += a; moved += f + a
+                }
+                // ponytail: the demo inbox is fixed sample mail on the server, so one pass is all there is
+                if moved == 0 || session.isDemo { break }
+            }
+            let after = session.isDemo ? 0 : try await sources().map(\.messages.count).reduce(0, +)
+            withAnimation { count = after; failed = false }
+            line = "Filed \(filed), archived \(archived). Nothing was deleted."
         } catch { line = error.localizedDescription }
     }
 
-    /// Gmail accounts in Mail.app still count toward the number, they just cannot be cleared from here.
-    private func refreshAccounts() throws {
-        #if DEBUG
-        if session.isMacMail { gmailLeft = try MacMail.accounts().filter(\.isGmail).map(\.count).reduce(0, +); return }
-        #endif
-        gmailLeft = 0
-    }
-
-    private func clearAccount(_ messages: [Message]) async throws -> Int {
-        guard let api = session.api else { return 0 }
-        let filed = try await api.organize(messages.filter { $0.folder != nil }).total
-        let people = messages.filter { $0.folder == nil }
+    /// Files what has a folder and archives the rest. Returns how many of each actually moved.
+    private func clear(_ source: Source) async throws -> (filed: Int, archived: Int) {
+        let folderMail = source.messages.filter { $0.folder != nil }
+        let people = source.messages.filter { $0.folder == nil }
+        guard let api = source.api else {
+            #if DEBUG
+            return try MacMail.clear(source.messages)
+            #else
+            return (0, 0)
+            #endif
+        }
+        let filed = folderMail.isEmpty ? 0 : try await api.organize(folderMail).total
         for m in people { try await api.perform(.archive, on: m) }
-        return filed + people.count
+        return (filed, people.count)
     }
+}
+
+/// The Gmail account to offer for sign-in: the first unconnected one that has mail waiting, else the first unconnected.
+func gmailToOffer(_ unconnected: [(email: String, count: Int)]) -> String? {
+    (unconnected.first { $0.count > 0 } ?? unconnected.first)?.email
 }
 #endif

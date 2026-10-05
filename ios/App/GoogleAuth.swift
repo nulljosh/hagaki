@@ -21,7 +21,8 @@ final class GoogleAuth: NSObject, ASWebAuthenticationPresentationContextProvidin
         #endif
     }
 
-    func connect(completion: @escaping (String?) -> Void) {
+    /// `loginHint` preselects an address in Google's account chooser.
+    func connect(loginHint: String? = nil, completion: @escaping (String?) -> Void) {
         var verifierBytes = [UInt8](repeating: 0, count: 32)
         _ = SecRandomCopyBytes(kSecRandomDefault, verifierBytes.count, &verifierBytes)
         let verifier = Data(verifierBytes).base64EncodedString()
@@ -38,6 +39,7 @@ final class GoogleAuth: NSObject, ASWebAuthenticationPresentationContextProvidin
             .init(name: "code_challenge", value: challenge),
             .init(name: "code_challenge_method", value: "S256"),
         ]
+        if let loginHint, !loginHint.isEmpty { comps.queryItems?.append(.init(name: "login_hint", value: loginHint)) }
 
         let s = ASWebAuthenticationSession(url: comps.url!, callbackURLScheme: iosRedirectScheme) { callbackURL, _ in
             guard let callbackURL, let code = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)?

@@ -87,6 +87,19 @@ struct API {
         try check(response, data)
     }
 
+    /// What kind of session this is (gmail, icloud, outlook, mac, demo) and the address it belongs to.
+    /// The address is empty for the demo and Mail.app sessions.
+    func whoami() async throws -> (provider: String, email: String) {
+        let (data, response) = try await session.data(for: request("api/whoami"))
+        try check(response, data)
+        struct Who: Decodable { let provider: String; let email: String }
+        let who = try JSONDecoder().decode(Who.self, from: data)
+        return (who.provider, who.email)
+    }
+
+    /// Drops the session on the server, so a signed-out account leaves no token behind. Best effort.
+    func logout() async { _ = try? await session.data(for: request("auth/logout", method: "POST")) }
+
     /// Sorts mail the app read itself (Mail.app), same rules and AI pass as the server's own inboxes.
     func sort(_ items: [MailItem]) async throws -> [Message] {
         struct Body: Encodable { let items: [MailItem]; let ai: Bool }

@@ -65,3 +65,11 @@ private func msg(_ from: String, junk: Bool = true, unsub: String? = "<https://x
     #expect(result.failed == 0)
     #expect(result.total == inbox.filter { $0.folder != nil }.count)
 }
+
+#if os(macOS)
+@Test func offersTheGmailAccountThatHasMailFirst() {
+    #expect(gmailToOffer([]) == nil)
+    #expect(gmailToOffer([("a@gmail.example", 0), ("b@gmail.example", 3)]) == "b@gmail.example")
+    #expect(gmailToOffer([("a@gmail.example", 0), ("b@gmail.example", 0)]) == "a@gmail.example")
+}
+#endif

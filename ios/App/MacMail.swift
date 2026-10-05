@@ -19,7 +19,7 @@ enum MacMail {
         "\"" + s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
     }
 
-    struct Account: Identifiable { let name: String; let count: Int; let isGmail: Bool; var id: String { name } }
+    struct Account: Identifiable { let name: String; let email: String; let count: Int; let isGmail: Bool; var id: String { name } }
 
     /// Every account Mail.app knows, with its inbox size. Gmail ones are listed but cannot be cleared from here.
     static func accounts() throws -> [Account] {
@@ -33,14 +33,14 @@ enum MacMail {
                 try
                     set n to count of messages of mailbox "INBOX" of a
                 end try
-                set out to out & (name of a) & us & (server name of a) & us & n & rs
+                set out to out & (name of a) & us & (server name of a) & us & n & us & (user name of a) & rs
             end repeat
         end tell
         return out
         """)
         return out.components(separatedBy: rowSep).compactMap { row in
             let f = row.components(separatedBy: sep)
-            return f.count == 3 ? Account(name: f[0], count: Int(f[2]) ?? 0, isGmail: f[1].lowercased().contains("gmail")) : nil
+            return f.count == 4 ? Account(name: f[0], email: f[3], count: Int(f[2]) ?? 0, isGmail: f[1].lowercased().contains("gmail")) : nil
         }
     }
 
@@ -70,7 +70,8 @@ enum MacMail {
     }
 
     /// Files each message into Mailbag/<folder> in its own account; mail from people goes to Archive. Nothing is deleted.
-    static func clear(_ messages: [Message]) throws -> Int {
+    /// Returns how many of each kind really moved, counted by Mail itself, since any single move can fail.
+    static func clear(_ messages: [Message]) throws -> (filed: Int, archived: Int) {
         var lines: [String] = []
         for m in messages {
             let f = m.id.components(separatedBy: sep)
@@ -78,15 +79,17 @@ enum MacMail {
             let acct = "account \(quoted(f[0]))"
             let dest = m.folder.map { "mailbox \(quoted($0)) of mailbox \"Mailbag\" of \(acct)" } ?? "mailbox \"Archive\" of \(acct)"
             let make = m.folder.map { "if not (exists mailbox \"Mailbag/\($0)\" of \(acct)) then make new mailbox with properties {name:\"Mailbag/\($0)\"} at \(acct)\n" } ?? ""
+            let counter = m.folder == nil ? "nArchived" : "nFiled"
             lines.append("""
             try
                 \(make)move (first message of mailbox "INBOX" of \(acct) whose id is \(mid)) to \(dest)
-                set n to n + 1
+                set \(counter) to \(counter) + 1
             end try
             """)
         }
-        let out = try run("set n to 0\ntell application \"Mail\"\n\(lines.joined(separator: "\n"))\nend tell\nreturn n as string")
-        return Int(out) ?? 0
+        let out = try run("set nFiled to 0\nset nArchived to 0\ntell application \"Mail\"\n\(lines.joined(separator: "\n"))\nend tell\nreturn (nFiled as string) & \",\" & (nArchived as string)")
+        let n = out.split(separator: ",").map { Int($0) ?? 0 }
+        return (n.first ?? 0, n.count > 1 ? n[1] : 0)
     }
 }
 #endif

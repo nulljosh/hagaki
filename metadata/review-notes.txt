@@ -6,7 +6,7 @@ On the Mac the window shows one number, the count of messages in the inbox, and 
 
 With a real account, filing creates labels (Gmail) or folders (iCloud Mail) named Mailbag/<folder> and moves the messages there. Nothing is deleted. Delete is a separate action, and in Gmail it goes to Trash.
 
-Smart sorting: rules sort most mail in the app's own server code. For messages the rules cannot place, the sender, subject and a short preview are sent to a language model that runs on our own server host (Cloudflare Workers AI). This is disclosed on the sign-in screen and in the privacy policy, and it can be turned off (Settings on Mac, the menu in the inbox on iPhone and iPad). With it off, only the rules run.
+Smart sorting: rules sort most mail in the app's own server code. Mail with no sign of an automated sender (no unsubscribe header, no no-reply style address) is treated as personal: it is never filed and never sent to any model. For automated mail the rules cannot place, the sender, subject and a short preview are sent to a language model that runs on our own server host (Cloudflare Workers AI). This is disclosed on the sign-in screen and in the privacy policy, and it can be turned off (Settings on Mac, the menu in the inbox on iPhone and iPad). With it off, only the rules run.
 
 Real sign-in: "Continue with Gmail" uses Google sign-in in the system browser (PKCE). "Continue with iCloud Mail" uses an app-specific password. The session token is kept in the Keychain. The app reads or changes mail only when the user taps.
 
