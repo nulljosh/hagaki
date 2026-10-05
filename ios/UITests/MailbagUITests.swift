@@ -1,29 +1,53 @@
 import XCTest
 
 /// End to end against the live demo inbox: open it, file everything, sign out.
-final class HagakiUITests: XCTestCase {
+extension NSPredicate {
+    func wait(on element: XCUIElement, timeout: TimeInterval = 20) -> Bool {
+        XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: self, object: element)], timeout: timeout) == .completed
+    }
+}
+
+final class MailbagUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
     #if os(macOS)
     /// The Mac app is one number and one button: clear the demo inbox, then sign out.
     func testDemoClearsInboxThenSignsOut() {
         let app = XCUIApplication()
-        app.launchArguments = ["-hagakiDemo"]
+        app.launchArguments = ["-demo", "YES"]
         app.launch()
         let clear = app.buttons["clear"]
-        XCTAssertTrue(clear.waitForExistence(timeout: 20), "inbox never loaded")
-        XCTAssertEqual(app.staticTexts["count"].label, "10")
-        clear.tap()
-        let result = app.staticTexts["result"]
-        XCTAssertTrue(NSPredicate(format: "label CONTAINS 'Nothing was deleted'").evaluate(with: result) || result.waitForExistence(timeout: 20))
-        XCTAssertTrue(app.staticTexts["Inbox zero"].waitForExistence(timeout: 20), "inbox did not clear")
-        app.buttons["signout"].tap()
+        if !clear.waitForExistence(timeout: 20) { print("DBG-START\n" + app.debugDescription + "\nDBG-END") }
+        XCTAssertTrue(clear.exists, "inbox never loaded")
+        // SwiftUI on the Mac puts a Text's string in `value`, not `label`
+        let count = app.staticTexts["count"]
+        XCTAssertTrue(count.waitForExistence(timeout: 10))
+        XCTAssertTrue(NSPredicate(format: "value == '10'").wait(on: count), "demo inbox should show 10")
+        // A click on a window that lost focus only activates it, so bring the app forward and retry.
+        let zero = app.images["zero"]
+        for _ in 0..<3 where !zero.exists {
+            app.activate()
+            if clear.exists { clear.click() }
+            _ = zero.waitForExistence(timeout: 12)
+        }
+        XCTAssertTrue(zero.exists, "inbox did not clear")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "value == 'Demo inbox zero'")).firstMatch.exists)
+        let signOut = app.buttons["signout"]
+        for _ in 0..<3 where !signOut.exists {
+            app.activate()
+            app.buttons["settings"].click()
+            _ = signOut.waitForExistence(timeout: 6)
+        }
+        if !signOut.exists { print("DBG-START\n" + app.debugDescription + "\nDBG-END") }
+        XCTAssertTrue(signOut.exists, "settings did not open")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "value == 'Demo inbox' OR label == 'Demo inbox'")).firstMatch.exists, "settings should list the account")
+        signOut.click()
         XCTAssertTrue(app.buttons["Try the demo inbox"].waitForExistence(timeout: 10), "sign out did not return to sign-in")
     }
     #else
     func testDemoFilesEverythingThenSignsOut() {
         let app = XCUIApplication()
-        app.launchArguments = ["-hagakiDemo"]
+        app.launchArguments = ["-demo", "YES"]
         app.launch()
 
         // If a session survived from an earlier run, sign out first so the demo path is what we test.

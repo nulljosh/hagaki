@@ -3,7 +3,8 @@ main = "worker.js"
 compatibility_date = "2026-09-01"
 workers_dev = true
 routes = [
-  { pattern = "hagaki.heyitsmejosh.com", custom_domain = true },
+  { pattern = "mailbag.heyitsmejosh.com", custom_domain = true },
+  { pattern = "hagaki.heyitsmejosh.com", custom_domain = true }, # keep: the Google OAuth callback is registered here
   { pattern = "pare.heyitsmejosh.com", custom_domain = true },
   { pattern = "siftbox.heyitsmejosh.com", custom_domain = true }, # keep: GCP OAuth callback is registered here
   { pattern = "sieve.heyitsmejosh.com", custom_domain = true },

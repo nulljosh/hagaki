@@ -1,7 +1,13 @@
-Hagaki is a native SwiftUI app (iOS and macOS) that sorts an inbox into seven smart folders. No account is needed to try it: open the app and tap "Try the demo inbox". It loads sample mail, lists each message under its folder (Receipts, Travel, Dev, Newsletters, Social, Promotions, Junk), and "File everything" in the top bar files them. Mail from a person with no bulk signals stays in the inbox. The demo uses sample mail only and touches no real mailbox.
+Mailbag is a native SwiftUI app (iOS and macOS) that empties an inbox in one tap. No account is needed to try it: open the app and choose "Try the demo inbox". It loads sample mail. The demo uses sample mail only and touches no real mailbox.
 
-With a real account, "File everything" creates labels (Gmail) or folders (iCloud Mail) named Hagaki/<folder> and moves the messages there. Nothing is deleted. Delete is a separate swipe action, and in Gmail it goes to Trash. Swipe also offers File, Archive and Unsubscribe.
+On iPhone and iPad the inbox is a list, with each message under its folder (Receipts, Travel, Dev, Newsletters, Social, Promotions, Junk). "Clear inbox" in the top bar files every message that has a folder and archives the rest. "File everything" files the folder mail and leaves mail from people in the inbox. Swipe offers File, Archive, Unsubscribe and Delete.
+
+On the Mac the window shows one number, the count of messages in the inbox, and one button, "Clear inbox". Settings (Command-comma) lists the account, has the Smart sorting switch, and Sign out.
+
+With a real account, filing creates labels (Gmail) or folders (iCloud Mail) named Mailbag/<folder> and moves the messages there. Nothing is deleted. Delete is a separate action, and in Gmail it goes to Trash.
+
+Smart sorting: rules sort most mail in the app's own server code. For messages the rules cannot place, the sender, subject and a short preview are sent to a language model that runs on our own server host (Cloudflare Workers AI). This is disclosed on the sign-in screen and in the privacy policy, and it can be turned off (Settings on Mac, the menu in the inbox on iPhone and iPad). With it off, only the rules run.
 
 Real sign-in: "Continue with Gmail" uses Google sign-in in the system browser (PKCE). "Continue with iCloud Mail" uses an app-specific password. The session token is kept in the Keychain. The app reads or changes mail only when the user taps.
 
-This build responds to the earlier 4.3(a) feedback. The previous build wrapped a web page. This one is fully native: native sign-in, a native inbox list with sections and swipe actions, a Keychain session, and smart folders. The app was renamed from Siftbox to Hagaki. The bundle ID is unchanged.
+This build responds to the earlier 4.3(a) feedback. The first build wrapped a web page. This one is fully native: native sign-in, a native inbox, a Keychain session, and smart folders. The app was renamed from Siftbox to Mailbag. The bundle ID is unchanged.

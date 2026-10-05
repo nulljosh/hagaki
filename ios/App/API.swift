@@ -1,6 +1,10 @@
 import Foundation
 
+// The API stays on the host the Google callback is registered on, whatever the app is called this week.
 let apiBase = URL(string: "https://hagaki.heyitsmejosh.com")!
+
+/// Smart sorting sends sender, subject and a short preview to a language model on the server. On unless the user turns it off.
+var aiSortEnabled: Bool { UserDefaults.standard.object(forKey: "aiSort") as? Bool ?? true }
 
 struct Message: Codable, Identifiable, Equatable {
     let id: String
@@ -23,7 +27,7 @@ struct Message: Codable, Identifiable, Equatable {
     var folder: String? { smartFolders.contains(category ?? "") ? category : nil }
 }
 
-/// Seven boxes, like the seven red boxes on a Japanese postcard.
+/// The seven smart folders, one per kind of machine mail.
 let smartFolders = ["Receipts", "Travel", "Dev", "Newsletters", "Social", "Promotions", "Junk"]
 
 /// Mail the app read itself, sent to /api/sort with no body text.
@@ -69,7 +73,9 @@ struct API {
     }
 
     func messages() async throws -> [Message] {
-        let (data, response) = try await session.data(for: request("api/messages"))
+        var r = request("api/messages")
+        if !aiSortEnabled { r.url = URL(string: r.url!.absoluteString + "?ai=0") }
+        let (data, response) = try await session.data(for: r)
         try check(response, data)
         return try JSONDecoder().decode([Message].self, from: data)
     }
@@ -83,8 +89,8 @@ struct API {
 
     /// Sorts mail the app read itself (Mail.app), same rules and AI pass as the server's own inboxes.
     func sort(_ items: [MailItem]) async throws -> [Message] {
-        struct Body: Encodable { let items: [MailItem] }
-        let (data, response) = try await session.data(for: request("api/sort", method: "POST", body: try JSONEncoder().encode(Body(items: items))))
+        struct Body: Encodable { let items: [MailItem]; let ai: Bool }
+        let (data, response) = try await session.data(for: request("api/sort", method: "POST", body: try JSONEncoder().encode(Body(items: items, ai: aiSortEnabled))))
         try check(response, data)
         return try JSONDecoder().decode([Message].self, from: data)
     }

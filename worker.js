@@ -86,9 +86,9 @@ function scoreMessage({ from, replyTo, subject, snippet, listUnsubscribe }) {
   return { score, reasons, isJunk: score >= 2 && !KNOWN_SERVICES.test(fromDomain) };
 }
 
-// --- smart folders: seven boxes, like the seven red boxes on a Japanese postcard ---
+// --- smart folders: seven of them, one per kind of machine mail ---
 // Mail from real people has no folder and stays in the inbox. Everything else gets filed, never deleted.
-const FOLDER_PARENT = "Hagaki";
+const FOLDER_PARENT = "Mailbag";
 const FOLDERS = ["Receipts", "Travel", "Dev", "Newsletters", "Social", "Promotions", "Junk"];
 const DEV = /(?:github|gitlab|vercel|sentry|cloudflare|supabase|netlify|npmjs|circleci|atlassian|linear|appstoreconnect|itunesconnect|developer\.apple|testflight|twilio|kaggle|apify|getgitguardian)\./i;
 const DEV_WORDS = /\b(build (?:failed|succeeded)|deploy(?:ment)?|pull request|workflow run|app store connect|testflight|new sign-in|your [^.]{1,60} submission|uploaded build|available to test|invited you to test|webhook)\b/i;
@@ -186,7 +186,7 @@ async function gmailAction(session, { messageId, action, listUnsubscribe, oneCli
   return { error: "unknown action" };
 }
 
-// Files messages into Hagaki/<Folder> labels and takes them out of the inbox. Nothing is trashed.
+// Files messages into Mailbag/<Folder> labels and takes them out of the inbox. Nothing is trashed.
 async function gmailOrganize(session, items) {
   const groups = groupByFolder(items);
   const organized = {};
@@ -442,7 +442,7 @@ const DEMO_MAIL = [
   { id: "d2", from: "PayPal <service@paypa1-secure.example>", replyTo: "", subject: "Final notice: confirm your payment", snippet: "Dear member, click here to claim now.", listUnsubscribe: "" },
   { id: "d3", from: "DealDrop <hello@dealdrop.example>", replyTo: "", subject: "Limited time: 60% off everything", snippet: "Dear customer, shop the sale.", listUnsubscribe: "<https://dealdrop.example/u/1>", oneClick: true },
   { id: "d4", from: "DealDrop <hello@dealdrop.example>", replyTo: "", subject: "Last chance, sale ends today", snippet: "Dear customer, do not miss out.", listUnsubscribe: "<https://dealdrop.example/u/2>", oneClick: true },
-  { id: "d5", from: "GitHub <noreply@github.com>", replyTo: "", subject: "[hagaki] Pull request merged", snippet: "Your pull request was merged into main.", listUnsubscribe: "" },
+  { id: "d5", from: "GitHub <noreply@github.com>", replyTo: "", subject: "[mailbag] Pull request merged", snippet: "Your pull request was merged into main.", listUnsubscribe: "" },
   { id: "d6", from: "Stripe <receipts@stripe.com>", replyTo: "", subject: "Your receipt from Acme", snippet: "Thanks for your payment.", listUnsubscribe: "" },
   { id: "d7", from: "Sam Rivera <sam@example.org>", replyTo: "", subject: "Lunch Thursday?", snippet: "Are you free around noon?", listUnsubscribe: "" },
   { id: "d8", from: "Air Canada <noreply@aircanada.com>", replyTo: "", subject: "Your boarding pass for YVR to NRT", snippet: "Check-in is open.", listUnsubscribe: "" },
@@ -633,7 +633,9 @@ export default {
       session = await refreshIfNeeded(env, id, session);
       if (!session) return new Response("session expired", { status: 401 });
       try {
-        return Response.json(await llmRefine(env, await listMessages(session)));
+        // ?ai=0 is the user turning smart sorting off: rules only, nothing goes to the model
+        const listed = await listMessages(session);
+        return Response.json(searchParams.get("ai") === "0" ? listed : await llmRefine(env, listed));
       } catch (e) {
         return new Response(String(e), { status: 502 });
       }
@@ -657,8 +659,8 @@ export default {
     // sort mail the client already has (Mac Mail mode): same rules + LLM pass, nothing is stored
     if (pathname === "/api/sort" && request.method === "POST") {
       if (!(await getSession(env, sessionIdFromRequest(request)))) return new Response("not connected", { status: 401 });
-      const { items = [] } = await request.json();
-      return Response.json(await llmRefine(env, sortItems(items)));
+      const { items = [], ai = true } = await request.json();
+      return Response.json(ai === false ? sortItems(items) : await llmRefine(env, sortItems(items)));
     }
 
     if (pathname === "/api/organize" && request.method === "POST") {

@@ -69,15 +69,15 @@ enum MacMail {
         }
     }
 
-    /// Files each message into Hagaki/<folder> in its own account; mail from people goes to Archive. Nothing is deleted.
+    /// Files each message into Mailbag/<folder> in its own account; mail from people goes to Archive. Nothing is deleted.
     static func clear(_ messages: [Message]) throws -> Int {
         var lines: [String] = []
         for m in messages {
             let f = m.id.components(separatedBy: sep)
             guard f.count == 2, let mid = Int(f[1]) else { continue }
             let acct = "account \(quoted(f[0]))"
-            let dest = m.folder.map { "mailbox \(quoted($0)) of mailbox \"Hagaki\" of \(acct)" } ?? "mailbox \"Archive\" of \(acct)"
-            let make = m.folder.map { "if not (exists mailbox \"Hagaki/\($0)\" of \(acct)) then make new mailbox with properties {name:\"Hagaki/\($0)\"} at \(acct)\n" } ?? ""
+            let dest = m.folder.map { "mailbox \(quoted($0)) of mailbox \"Mailbag\" of \(acct)" } ?? "mailbox \"Archive\" of \(acct)"
+            let make = m.folder.map { "if not (exists mailbox \"Mailbag/\($0)\" of \(acct)) then make new mailbox with properties {name:\"Mailbag/\($0)\"} at \(acct)\n" } ?? ""
             lines.append("""
             try
                 \(make)move (first message of mailbox "INBOX" of \(acct) whose id is \(mid)) to \(dest)

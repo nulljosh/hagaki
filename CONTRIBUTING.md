@@ -1,10 +1,10 @@
-# Contributing to Hagaki
+# Contributing to Mailbag
 
 ## Setup
 
 ```
-git clone https://github.com/nulljosh/hagaki.git
-cd hagaki
+git clone https://github.com/nulljosh/mailbag.git
+cd mailbag
 npm install
 ```
 

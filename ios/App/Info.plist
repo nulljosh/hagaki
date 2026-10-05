@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>Hagaki</string>
+	<string>Mailbag</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.nulljosh.sieve</string>
 	<key>CFBundleName</key>
-	<string>Hagaki</string>
+	<string>Mailbag</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -19,7 +19,7 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Hagaki files your Mail.app inbox into its seven boxes.</string>
+	<string>Mailbag files your Mail.app inbox into its seven boxes.</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>UILaunchScreen</key>

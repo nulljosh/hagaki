@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hagaki: Privacy</title>
+<title>Mailbag: Privacy</title>
 <link rel="icon" href="icon.svg">
 <style>
   :root{--bg:#f6f0e4;--text:#1c1814;--muted:#6f665a;}
@@ -19,19 +19,19 @@
 <body>
 <div class="wrap">
 <h1>Privacy</h1>
-<p>Hagaki connects to your Gmail account with your permission (Google Sign-In) to read, score, and act on messages in your inbox. For iCloud it uses an app-specific password you create. Nothing about your mail is sent anywhere except between Hagaki and your mail provider.</p>
+<p>Mailbag connects to your Gmail account with your permission (Google Sign-In) to read, score, and act on messages in your inbox. For iCloud it uses an app-specific password you create. To sort what its rules cannot place, Mailbag sends the sender, subject and a short preview of those messages to a language model running on Cloudflare, the same company that hosts Mailbag. Nothing else about your mail leaves Mailbag and your mail provider.</p>
 
-<h2>What Hagaki accesses</h2>
-<p>Message headers and bodies in your Gmail inbox, to score and display them. Labels and folders. When you press File, Hagaki creates a folder called Hagaki with seven boxes under it (Gmail labels or iCloud folders) and moves mail there. It also archives or deletes when you ask. Deleting in Gmail moves mail to Trash. It never sends outbound mail on your behalf.</p>
+<h2>What Mailbag accesses</h2>
+<p>Message headers and bodies in your Gmail inbox, to score and display them. Labels and folders. When you press File, Mailbag creates a folder called Mailbag with seven folders under it (Gmail labels or iCloud folders) and moves mail there. It also archives or deletes when you ask. Deleting in Gmail moves mail to Trash. It never sends outbound mail on your behalf.</p>
 
-<h2>What Hagaki stores</h2>
-<p>An OAuth access/refresh token, encrypted at rest in Cloudflare KV, so you don't have to reconnect every visit. No message content is stored — inbox data is read live from Gmail each time you open the app and discarded after rendering.</p>
+<h2>What Mailbag stores</h2>
+<p>An OAuth access/refresh token, encrypted at rest in Cloudflare KV, so you don't have to reconnect every visit. No message content is stored — inbox data is read live from Gmail each time you open the app and discarded after rendering. Mailbag keeps no copy of what it sends to the model.</p>
 
-<h2>What Hagaki never does</h2>
+<h2>What Mailbag never does</h2>
 <p>Sell or share your data with third parties. Use your mail for advertising. Run in the background without you opening the app.</p>
 
 <h2>Revoking access</h2>
-<p>Remove Hagaki's access anytime at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</p>
+<p>Remove Mailbag's access anytime at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</p>
 
 <h2>Contact</h2>
 <p>Questions: <a href="https://heyitsmejosh.com">heyitsmejosh.com</a>.</p>

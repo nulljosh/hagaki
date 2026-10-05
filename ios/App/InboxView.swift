@@ -7,6 +7,7 @@ struct InboxView: View {
     @State private var error: String?
     @State private var note: String?
     @State private var filing = false
+    @AppStorage("aiSort") private var aiSort = true
 
     private var filable: [Message] { messages.filter { $0.folder != nil } }
     private var staying: [Message] { messages.filter { $0.folder == nil } }
@@ -41,19 +42,19 @@ struct InboxView: View {
             .refreshable { await load() }
             .navigationTitle("Inbox")
             .toolbar {
-                Button(filing ? "Clearing..." : "Clear inbox") { Task { session.isMacMail ? await clearMacMail() : await clearAll() } }
+                Button(filing ? "Clearing..." : "Clear inbox") { Task { await clearAll() } }
                     .disabled(messages.isEmpty || filing)
-                if !session.isMacMail {
-                    Button(filing ? "Filing..." : "File everything") { Task { await fileAll() } }
-                        .disabled(filable.isEmpty || filing)
-                }
+                Button(filing ? "Filing..." : "File everything") { Task { await fileAll() } }
+                    .disabled(filable.isEmpty || filing)
                 Menu {
+                    Toggle("Smart sorting", isOn: $aiSort)
                     Button("Refresh") { Task { await load() } }
                     Button("Sign out", role: .destructive) { session.signOut() }
                 } label: { Label("More", systemImage: "ellipsis.circle") }
             }
             .overlay { if !loaded && error == nil { ProgressView() } }
             .task(id: session.token) { await load() }
+            .onChange(of: aiSort) { Task { await load() } }
         }
     }
 
@@ -88,15 +89,6 @@ struct InboxView: View {
     private func load() async {
         guard let api = session.api else { return }
         do {
-            #if os(macOS) && DEBUG
-            if session.isMacMail {
-                let items = try MacMail.inbox()
-                messages = items.isEmpty ? [] : try await api.sort(items)
-                error = nil; loaded = true
-                if CommandLine.arguments.contains("-hagakiClear") { await clearMacMail() }
-                return
-            }
-            #endif
             messages = try await api.messages(); error = nil
         } catch {
             self.error = error.localizedDescription
@@ -122,19 +114,6 @@ struct InboxView: View {
         await fileAll()
         for m in staying { await run(.archive, m) }
         if error == nil { note = "Inbox cleared. Machine mail is in its box, people are in your archive. Nothing was deleted." }
-    }
-
-    /// Mail.app mode: machine mail into its Hagaki box, people into Archive. Inbox zero, nothing deleted.
-    private func clearMacMail() async {
-        #if os(macOS) && DEBUG
-        filing = true; defer { filing = false }
-        do {
-            let moved = try MacMail.clear(messages)
-            note = "Cleared \(moved) of \(messages.count). People went to Archive, the rest to their Hagaki box. Nothing was deleted."
-            messages = try await session.api?.sort(MacMail.inbox()) ?? []
-            error = nil
-        } catch { self.error = error.localizedDescription }
-        #endif
     }
 
     private func run(_ action: Action, _ m: Message) async {

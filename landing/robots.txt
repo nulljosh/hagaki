@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://hagaki.heyitsmejosh.com/sitemap.xml
+Sitemap: https://mailbag.heyitsmejosh.com/sitemap.xml

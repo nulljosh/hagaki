@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import Hagaki
+@testable import Mailbag
 
 private func msg(_ from: String, junk: Bool = true, unsub: String? = "<https://x.example/u>") -> Message {
     Message(id: UUID().uuidString, from: from, subject: "s", snippet: nil, score: junk ? 3 : 0, reasons: [], isJunk: junk, category: junk ? "Junk" : nil, listUnsubscribe: unsub, oneClick: nil)
@@ -23,7 +23,7 @@ private func msg(_ from: String, junk: Bool = true, unsub: String? = "<https://x
 
 @Test func requestsCarryTheBearerToken() {
     let r = API(token: "tok").request("api/messages")
-    #expect(r.url?.host == "hagaki.heyitsmejosh.com")
+    #expect(r.url?.host == apiBase.host)
     #expect(r.value(forHTTPHeaderField: "Authorization") == "Bearer tok")
 }
 
@@ -54,7 +54,7 @@ private func msg(_ from: String, junk: Bool = true, unsub: String? = "<https://x
 }
 
 /// Live end to end, no UI automation needed: the app's own demo sign-in, inbox and File everything
-/// against hagaki.heyitsmejosh.com. Runs inside the app on Mac and iPhone.
+/// against the live API. Runs inside the app on Mac and iPhone.
 @Test func demoInboxFilesEverythingLive() async throws {
     let api = API(token: try await Auth.demo())
     let inbox = try await api.messages()

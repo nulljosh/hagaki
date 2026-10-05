@@ -61,7 +61,7 @@ console.log('iCloud archive results and connection cleanup: ok');
   const calls = [];
   const fetchMock = async (url, opts = {}) => {
     calls.push({ url, method: opts.method || 'GET', body: opts.body ? JSON.parse(opts.body) : null });
-    if (url.endsWith('/labels') && !opts.method) return { ok: true, json: async () => ({ labels: [{ id: 'L1', name: 'Hagaki/Receipts' }] }) };
+    if (url.endsWith('/labels') && !opts.method) return { ok: true, json: async () => ({ labels: [{ id: 'L1', name: 'Mailbag/Receipts' }] }) };
     if (url.endsWith('/labels')) return { ok: true, json: async () => ({ id: 'L2' }) };
     return { ok: true, json: async () => ({}) };
   };
@@ -101,7 +101,7 @@ console.log('smart folders: ok');
   const organize = runInNewContext(source + '\n;imapLogin = async () => client; icloudOrganize;', { client });
   const result = await organize({}, [{ messageId: '7', category: 'Receipts' }, { messageId: '8', category: 'Receipts' }, { messageId: 'x', category: 'Dev' }]);
   assert.deepEqual(JSON.parse(JSON.stringify(result)), { organized: { Receipts: 2 }, failed: 1 });
-  assert.ok(cmds.includes('UID MOVE 7,8 "Hagaki/Receipts"'));
+  assert.ok(cmds.includes('UID MOVE 7,8 "Mailbag/Receipts"'));
   assert.equal(cmds.at(-1), 'QUIT');
 }
 console.log('iCloud smart folders: ok');

@@ -1,65 +1,107 @@
 #if os(macOS)
 import SwiftUI
 
+/// White in light mode, the system dark in dark mode.
+let paper = Color(nsColor: .textBackgroundColor)
+
 /// The whole Mac app: how much mail there is, one button, inbox zero. Nothing is deleted.
 struct SimpleInboxView: View {
     @EnvironmentObject var session: Session
+    @AppStorage("aiSort") private var aiSort = true
     @State private var count: Int?
     @State private var busy = false
     @State private var line = ""
+    @State private var failed = false
     @State private var gmailLeft = 0
-    @State private var accounts: [(name: String, count: Int, note: String?)] = []
+    @State private var clearAfterSignIn = false
+    @State private var autoClear = launchFlag("clear")
 
-    private let ink = Color(red: 0.71, green: 0.31, blue: 0.17)
-
-    /// White in light mode, the system dark in dark mode.
-    private let paper = Color(nsColor: .textBackgroundColor)
+    /// Mail.app cannot move Gmail, so once the rest is clear the button becomes the Gmail sign-in.
+    private var needsGmail: Bool { count == 0 && gmailLeft > 0 }
+    private var isZero: Bool { count == 0 && gmailLeft == 0 }
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            paper.ignoresSafeArea()
-            VStack(spacing: 20) {
-                Spacer()
-                Text(count.map { $0 + gmailLeft == 0 ? "Inbox zero" : "\($0 + gmailLeft)" } ?? " ")
-                    .font(.system(size: shownZero ? 64 : 120, weight: .semibold))
-                    .accessibilityIdentifier("count")
-                    .foregroundStyle(shownZero ? ink : .primary)
-                    .contentTransition(.numericText())
-                Text(shownZero ? "Nothing left to do." : (count == 0 ? "Gmail can't be cleared from Mail. Sign in to Gmail." : "in your inbox"))
-                    .font(.title2).foregroundStyle(.secondary)
-                Button { Task { await clear() } } label: {
-                    Text(busy ? "Clearing..." : "Clear inbox").font(.title3.weight(.semibold)).frame(width: 260, height: 32)
-                }
-                .controlSize(.extraLarge).buttonStyle(.borderedProminent)
-                .disabled(busy || (count ?? 0) == 0)
-                .padding(.top, 8)
-                .accessibilityIdentifier("clear")
-                if !accounts.isEmpty {
-                    VStack(spacing: 6) {
-                        ForEach(accounts, id: \.name) { a in
-                            HStack {
-                                Text(a.name)
-                                if let note = a.note { Text(note).foregroundStyle(.tertiary) }
-                                Spacer()
-                                Text("\(a.count)").monospacedDigit()
-                            }
-                            .foregroundStyle(a.note == nil ? .primary : .secondary)
-                        }
-                    }
-                    .font(.callout).frame(width: 260).padding(.top, 6)
-                }
-                Text(line).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(height: 44)
+        VStack(spacing: 0) {
+            headline.frame(height: 150)
+            Text(caption)
+                .font(isZero ? .title.weight(.semibold) : .title2)
+                .foregroundStyle(isZero ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("caption")
+            action.padding(.top, 28)
+            if !line.isEmpty {
+                Text(line)
+                    .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 20)
                     .accessibilityIdentifier("result")
-                Spacer()
             }
-            .padding(40)
-            .frame(maxWidth: .infinity)
-            Button("Sign out") { session.signOut() }
-                .buttonStyle(.plain).accessibilityIdentifier("signout").font(.callout).foregroundStyle(.secondary)
-                .padding(20)
         }
-        .frame(minWidth: 480, minHeight: 560)
+        .padding(.horizontal, 48).padding(.top, 52).padding(.bottom, 56)
+        .frame(width: 440)
+        .background(paper.ignoresSafeArea())
+        .overlay(alignment: .bottomTrailing) {
+            SettingsLink { Image(systemName: "gearshape").font(.title3) }
+                .buttonStyle(.plain).foregroundStyle(.secondary).help("Settings")
+                .accessibilityLabel("Settings").accessibilityIdentifier("settings")
+                .padding(18)
+        }
+        // Cmd-R checks again without a visible control
+        .background(Button("Check again") { Task { await load() } }.keyboardShortcut("r").opacity(0).accessibilityHidden(true))
+        .fixedSize(horizontal: false, vertical: true)
         .task(id: session.token) { await load() }
+        .onChange(of: aiSort) { Task { await load() } }
+        // Mail is only read when you look: on launch and whenever the app comes forward.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            if !busy, !session.busy { Task { await load() } }
+        }
+    }
+
+    @ViewBuilder private var headline: some View {
+        if failed {
+            Image(systemName: "wifi.exclamationmark").font(.system(size: 64, weight: .medium)).foregroundStyle(.secondary)
+        } else if count == nil {
+            ProgressView().controlSize(.large)
+        } else if isZero {
+            Image(systemName: "checkmark.circle.fill").font(.system(size: 96, weight: .medium)).foregroundStyle(brandBlue)
+                .accessibilityIdentifier("zero")
+        } else {
+            Text("\((count ?? 0) + gmailLeft)")
+                .font(.system(size: 124, weight: .semibold)).monospacedDigit()
+                .contentTransition(.numericText())
+                .accessibilityIdentifier("count")
+        }
+    }
+
+    private var caption: String {
+        if failed { return "Could not reach your mail." }
+        if count == nil { return "Checking your mail" }
+        if isZero { return session.isDemo ? "Demo inbox zero" : "Inbox zero" }
+        if session.isDemo { return "in the demo inbox" }
+        return needsGmail ? "left in Gmail" : "in your inbox"
+    }
+
+    @ViewBuilder private var action: some View {
+        if failed {
+            bigButton("Try again") { Task { await load() } }
+        } else if needsGmail {
+            bigButton("Sign in to Gmail") { clearAfterSignIn = true; session.gmail() }
+                .disabled(session.busy)
+                .accessibilityIdentifier("gmail")
+        } else if isZero {
+            Button("Check again") { Task { await load() } }.buttonStyle(.link).accessibilityIdentifier("again")
+        } else {
+            bigButton(busy ? "Clearing..." : "Clear inbox") { Task { await clear() } }
+                .disabled(busy || count == nil)
+                .accessibilityIdentifier("clear")
+        }
+    }
+
+    private func bigButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Text(title).font(.title3.weight(.semibold)).frame(width: 260, height: 32) }
+            .controlSize(.extraLarge).buttonStyle(.borderedProminent)
+            .keyboardShortcut(.defaultAction)
     }
 
     /// Mail.app mode reads the Mac's own inbox; otherwise the signed-in Gmail/iCloud account.
@@ -74,48 +116,59 @@ struct SimpleInboxView: View {
         return try await api.messages()
     }
 
-    private var shownZero: Bool { count != nil && (count ?? 0) + gmailLeft == 0 }
-
     private func load() async {
-        do { count = try await inbox().count; line = ""; try refreshAccounts() } catch { line = error.localizedDescription }
-        if CommandLine.arguments.contains("-hagakiClear"), (count ?? 0) > 0 { await clear() }
+        do {
+            let n = try await inbox().count
+            try refreshAccounts()
+            withAnimation { count = n }
+            if failed { line = "" }
+            failed = false
+        } catch {
+            // a newer load replaced this one (the session changed mid-flight): not an error
+            if error is CancellationError || (error as? URLError)?.code == .cancelled { return }
+            if error.localizedDescription.hasPrefix("Session expired") { session.signOut(); return }
+            failed = true; line = error.localizedDescription; return
+        }
+        // `-clear`, or arriving from "Sign in to Gmail": an empty inbox was already asked for, so finish the job.
+        if (count ?? 0) > 0, autoClear || (clearAfterSignIn && !session.isMacMail) {
+            autoClear = false; clearAfterSignIn = false
+            await clear()
+        }
     }
 
     private func clear() async {
         busy = true; defer { busy = false }
         do {
             let messages = try await inbox()
+            let filed = messages.filter { $0.folder != nil }.count
             var moved = 0
             #if DEBUG
             if session.isMacMail { moved = try MacMail.clear(messages) } else { moved = try await clearAccount(messages) }
             #else
             moved = try await clearAccount(messages)
             #endif
-            count = try await inbox().count
+            // ponytail: the demo inbox is fixed sample mail on the server, so a cleared demo is zero by definition
+            let after = try await inbox().count
             try refreshAccounts()
-            line = "Filed \(moved). Machine mail is in its Hagaki box, people are in Archive. Nothing was deleted."
+            withAnimation { count = session.isDemo ? 0 : after; failed = false }
+            line = "Filed \(min(filed, moved)), archived \(max(moved - filed, 0)). Nothing was deleted."
         } catch { line = error.localizedDescription }
     }
 
-    /// Mail.app mode lists every account on the Mac; otherwise the one account you signed in with.
+    /// Gmail accounts in Mail.app still count toward the number, they just cannot be cleared from here.
     private func refreshAccounts() throws {
         #if DEBUG
-        if session.isMacMail {
-            let all = try MacMail.accounts()
-            gmailLeft = all.filter(\.isGmail).map(\.count).reduce(0, +)
-            accounts = all.map { ($0.name, $0.count, $0.isGmail ? "Gmail" : nil) }
-            return
-        }
+        if session.isMacMail { gmailLeft = try MacMail.accounts().filter(\.isGmail).map(\.count).reduce(0, +); return }
         #endif
         gmailLeft = 0
-        accounts = [(session.label, count ?? 0, nil)]
     }
 
     private func clearAccount(_ messages: [Message]) async throws -> Int {
         guard let api = session.api else { return 0 }
         let filed = try await api.organize(messages.filter { $0.folder != nil }).total
-        for m in messages where m.folder == nil { try await api.perform(.archive, on: m) }
-        return filed + messages.filter { $0.folder == nil }.count
+        let people = messages.filter { $0.folder == nil }
+        for m in people { try await api.perform(.archive, on: m) }
+        return filed + people.count
     }
 }
 #endif
