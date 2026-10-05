@@ -1,28 +1,28 @@
-# Mailbag loop handoff (2026-10-04, evening)
+# Mailbag loop handoff (2026-10-04, night)
 
 ## What the loop is
 
-Clear every inbox to zero and get the Mac app to A+ quality. Machine mail goes into seven smart folders, people go to the archive, nothing is deleted. Real mail flow tested and working on Joshua's own inboxes.
+Get every inbox to zero with the app itself, get the Mac app to A+, add Outlook, then submit one Mailbag build to the App Store.
 
-## Where things stand (2026-10-04)
+## Where things stand
 
-- iCloud inbox: cleared from 21 to 0. Machine mail filed into seven folders (Receipts, Travel, Dev, Newsletters, Social, Promotions, Junk), people archived. Rules plus a Workers AI pass (`llama-3.3-70b`) sort what the rules miss.
-- Gmail "Ja" account: 5 messages stubborn (tried Mail.app twice, bounced back both times). Waiting on Joshua to click "Sign in to Gmail" in the app so it can use Gmail directly. After sign-in, confirm it reads 0 and stays 0 after a real Gmail sync.
-- Mac app: rebuilt as one big number and one "Clear inbox" button plus Settings window (accounts, smart sorting toggle, sign out). White background, San Francisco font, blue icon (letter dropping into a tray). UI grades A in light and dark. Mac UI test failing: the test runner sees no window due to hidden title bar and launch flags. Direct launches show the window fine.
-- iOS/macOS 1.0 builds: ready to submit, need 6 GB free disk to archive. Screenshots retaken with `-demo YES` (iPhone and iPad). ASC listing still says Hagaki with the old 1.0 build in review; flip the listing name to Mailbag and submit the Mailbag build in the same move.
-- Web: live at mailbag.heyitsmejosh.com.
-- OAuth callbacks: still at hagaki.heyitsmejosh.com. Add `https://mailbag.heyitsmejosh.com/auth/callback` in GCP Web client 1 before moving the callbacks.
+- Inboxes: iCloud, Ja (Gmail) and Gmail all read 0, and still read 0 after a Mail sync. iCloud was cleared by Mail.app mode. Ja was cleared through the app's Gmail sign-in after Mail.app moves bounced back twice.
+- Mac app: one number, one Clear inbox button, Settings window, loading, zero, error and Gmail-left states, light and dark. Graded A. Mac unit and UI tests pass. The UI test opens a window with Cmd-N because the test runner launches the app with none. A normal launch always has one. Cause not found.
+- Web: live at mailbag.heyitsmejosh.com with Clear inbox and the blue palette.
+- Outlook: server code is written and never run against a real mailbox. `/api/providers` reports it off and the page hides the button until `MS_OAUTH_CLIENT_ID` and `MS_CLIENT_SECRET` exist. `az` is installed. Nothing is registered with Microsoft yet.
+- App Store: listing says Hagaki and the old 1.0 build is in review. No Mailbag build has been archived. iPhone and iPad screenshots in `screenshots/` are still the old red ones. `metadata/` already describes Mailbag.
 
 ## Next, in order
 
-1. Joshua clicks "Sign in to Gmail" in the Mailbag window, confirm Ja inbox reads 0 and still reads 0 after a Mail sync, then quit the app.
-2. Fix the Mac UI test (ios/UITests/MailbagUITests.swift: the test runner sees no window since the hidden title bar and launch-flag changes; direct launches show the window fine).
-3. Retake iPhone and iPad screenshots with `-demo YES`.
-4. Free disk to 6 GB, archive iOS and macOS builds, then flip the ASC listing name to Mailbag and resubmit in the same move.
-5. Add the mailbag OAuth callback in GCP Web client 1 (jaybulb-signin, Chrome account jatrommel@gmail.com).
+1. Joshua runs `az login --allow-no-subscriptions`. Then register the Entra app (any org plus personal accounts, web redirects for the mailbag and hagaki hosts, a public-client redirect for the native apps), make a secret, `wrangler secret put` both values, deploy.
+2. Joshua signs in with his Outlook test account on the web. Check list, Clear inbox, archive and delete against the real mailbox. Fix what breaks.
+3. Add "Continue with Outlook" to the native sign-in (PKCE, same shape as `GoogleAuth`).
+4. Retake iPhone, iPad and Mac screenshots with `-demo YES`.
+5. Check disk (`df -h /`, about 4 GB free tonight). Archive iOS and macOS, upload, then cancel the old review, set the listing name to Mailbag and submit, all in one move.
+6. Add `https://mailbag.heyitsmejosh.com/auth/callback` in GCP Web client 1, then move `GOOGLE_REDIRECT` and `apiBase` to the mailbag host.
 
 ## Restart prompt
 
 ```
-/loop until every inbox is 0 and the Mailbag Mac app is A+, then submit the Mailbag build
+/loop until Outlook works on a real mailbox and the Mailbag build is submitted to the App Store
 ```

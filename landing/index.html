@@ -381,7 +381,7 @@ if (/[?&]embed\b/.test(location.search)) document.documentElement.classList.add(
     body.innerHTML = `
       <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
         <a class="btn" href="/auth/start">Connect Gmail</a>
-        <button class="btn" disabled title="Coming soon">Connect Outlook (soon)</button>
+        <a class="btn" id="outlookBtn" href="/auth/start/outlook" hidden>Connect Outlook</a>
         <button class="btn" id="icloudBtn">Connect iCloud</button>
         <button class="btn primary" id="demoBtn">Try the demo inbox</button>
       </div>
@@ -393,6 +393,8 @@ if (/[?&]embed\b/.test(location.search)) document.documentElement.classList.add(
         <button type="submit" class="btn">Connect</button>
         <p id="icloudErr" style="color:var(--accent);font-size:13px;margin:8px 0 0;"></p>
       </form>`;
+    // Outlook only shows once the server says its sign-in is switched on
+    fetch('/api/providers').then(r => r.json()).then(p => { if (p.outlook) document.getElementById('outlookBtn').hidden = false; }).catch(() => {});
     document.getElementById('demoBtn').addEventListener('click', async () => {
       const r = await fetch('/auth/demo', { method: 'POST' });
       if (!r.ok) return;

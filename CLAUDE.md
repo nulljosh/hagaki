@@ -48,4 +48,4 @@ Ran `scoreMessage` + `categorize` over Joshua's Mail.app inboxes (iCloud 21, Gma
 
 ## The loop
 
-State: `docs/LOOP-HANDOFF.md`. Goal: get every inbox to 0 and the Mac app to A+, then submit the Mailbag build.
+State: `docs/LOOP-HANDOFF.md`. Goal: Outlook working on a real mailbox, then one Mailbag build submitted to the App Store.

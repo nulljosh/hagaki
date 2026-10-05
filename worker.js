@@ -13,7 +13,7 @@ const MS_AUTH = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
 const MS_TOKEN = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
 const GRAPH = "https://graph.microsoft.com/v1.0/me";
 const MS_SCOPE = "offline_access Mail.ReadWrite";
-const MS_REDIRECT = "https://hagaki.heyitsmejosh.com/auth/callback/outlook";
+const MS_REDIRECT = "https://mailbag.heyitsmejosh.com/auth/callback/outlook"; // registered in the Entra app registration
 
 const IMAP_HOST = "imap.mail.me.com";
 const IMAP_PORT = 993;
@@ -253,7 +253,7 @@ async function outlookOrganize(session, items) {
     if (!folderId) { failed += ids.length; continue; }
     let moved = 0;
     for (const id of ids) {
-      const r = await graphFetch(session, `/messages/${id}/move`, { method: "POST", headers: json, body: JSON.stringify({ destinationId: folderId }) });
+      const r = await graphFetch(session, `/messages/${encodeURIComponent(id)}/move`, { method: "POST", headers: json, body: JSON.stringify({ destinationId: folderId }) });
       if (r.ok) moved++; else failed++;
     }
     if (moved) organized[folder] = moved;
@@ -264,15 +264,15 @@ async function outlookOrganize(session, items) {
 async function outlookAction(session, { messageId, action, listUnsubscribe, oneClick }) {
   if (action === "unsubscribe") {
     const ok = listUnsubscribe ? await unsubscribe(listUnsubscribe, oneClick) : false;
-    const r = await graphFetch(session, `/messages/${messageId}/move`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ destinationId: "archive" }) });
+    const r = await graphFetch(session, `/messages/${encodeURIComponent(messageId)}/move`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ destinationId: "archive" }) });
     return { unsubscribed: ok, archived: r.ok };
   }
   if (action === "archive") {
-    const r = await graphFetch(session, `/messages/${messageId}/move`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ destinationId: "archive" }) });
+    const r = await graphFetch(session, `/messages/${encodeURIComponent(messageId)}/move`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ destinationId: "archive" }) });
     return { archived: r.ok };
   }
   if (action === "delete") {
-    const r = await graphFetch(session, `/messages/${messageId}`, { method: "DELETE" });
+    const r = await graphFetch(session, `/messages/${encodeURIComponent(messageId)}`, { method: "DELETE" });
     return { deleted: r.ok || r.status === 204 };
   }
   return { error: "unknown action" };
@@ -527,8 +527,12 @@ export default {
       return Response.redirect(url.toString(), 302);
     }
 
+    // which sign-ins are switched on, so the page never offers a dead button
+    if (pathname === "/api/providers") return Response.json({ gmail: true, icloud: true, outlook: !!(env.MS_OAUTH_CLIENT_ID && env.MS_CLIENT_SECRET) });
+
     // --- OAuth: Outlook web flow ---
     if (pathname === "/auth/start/outlook") {
+      if (!env.MS_OAUTH_CLIENT_ID || !env.MS_CLIENT_SECRET) return new Response("Outlook sign-in is not set up yet", { status: 503 });
       const url = new URL(MS_AUTH);
       url.searchParams.set("client_id", env.MS_OAUTH_CLIENT_ID);
       url.searchParams.set("redirect_uri", MS_REDIRECT);
