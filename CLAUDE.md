@@ -45,3 +45,7 @@ Ran `scoreMessage` + `categorize` over Joshua's Mail.app inboxes (iCloud 21, Gma
 - Added `llmRefine`: one Workers AI call (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`, `[ai]` binding) re-sorts whatever the rules leave in Inbox, fails open. Cold "saw your app" outreach goes to Junk there, since the spam score never fires on it.
 - After the fixes: iCloud 15 of 21 filed, Ja 5 of 9; everything left is a person, school or a collections notice.
 - Filed for real in Mail.app via AppleScript into `Mailbag/<Folder>`. Gotcha: `mailbox "Mailbag/Dev"` does not resolve, use `mailbox "Dev" of mailbox "Mailbag"`, and re-query each message (move invalidates the list).
+
+## The loop
+
+State: `docs/LOOP-HANDOFF.md`. Goal: get every inbox to 0 and the Mac app to A+, then submit the Mailbag build.
