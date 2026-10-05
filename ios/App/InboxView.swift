@@ -53,7 +53,7 @@ struct InboxView: View {
                 } label: { Label("More", systemImage: "ellipsis.circle") }
             }
             .overlay { if !loaded && error == nil { ProgressView() } }
-            .task { await load() }
+            .task(id: session.token) { await load() }
         }
     }
 

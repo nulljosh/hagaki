@@ -7,7 +7,13 @@ struct HagakiApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if session.token == nil { SignInView() } else { InboxView() }
+                if session.token == nil { SignInView() } else {
+                    #if os(macOS)
+                    SimpleInboxView()
+                    #else
+                    InboxView()
+                    #endif
+                }
             }
             .environmentObject(session)
             .tint(Color(red: 0.71, green: 0.31, blue: 0.17))
