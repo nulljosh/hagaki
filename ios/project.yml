@@ -27,6 +27,10 @@ targets:
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_ENTITLEMENTS: Hagaki.entitlements
         CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: Hagaki-macOS.entitlements
+      configs:
+        Debug:
+          # Mail.app mode is a personal build: Apple Events to Mail never ship to the store.
+          CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: Hagaki-macOS-Debug.entitlements
   HagakiTests:
     type: bundle.unit-test
     supportedDestinations: [iOS, macOS]

@@ -28,13 +28,16 @@ final class Session: ObservableObject {
 
     init(token: String? = Keychain.get("session")) { self.token = token }
 
-    var api: API? { token.map { API(token: $0) } }
+    var api: API? { token.map { API(token: $0.hasPrefix("mac:") ? String($0.dropFirst(4)) : $0) } }
 
     func store(_ t: String?) { token = t; Keychain.set("session", t) }
 
     func signOut() { store(nil) }
 
     func demo() async { await run { try await Auth.demo() } }
+    /// Mail.app mode keeps a server token for /api/sort, prefixed so the inbox knows to read Mail.app.
+    func macMail() async { await run { "mac:" + (try await Auth.mac()) } }
+    var isMacMail: Bool { token?.hasPrefix("mac:") ?? false }
     func icloud(email: String, appPassword: String) async { await run { try await Auth.icloud(email: email, appPassword: appPassword) } }
     func gmail() {
         busy = true

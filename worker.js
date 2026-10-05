@@ -459,25 +459,36 @@ function demoList() {
 
 // --- LLM pass: whatever the rules left in the inbox gets one batched Workers AI call ---
 // ponytail: one call, first 30 leftovers, fails open (rules result stands). Add paging if inboxes outgrow it.
-const LLM_MODEL = "@cf/meta/llama-3.1-8b-instruct";
+const LLM_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 async function llmRefine(env, items) {
-  const left = items.filter((m) => m.category === "Inbox").slice(0, 30);
+  // marketplace replies are people and collections notices need a human: the model never gets a vote on them
+  const left = items.filter((m) => m.category === "Inbox" && !/reply\.craigslist\.org|collections?\./i.test(m.from || "")).slice(0, 30);
   if (!env.AI || !left.length) return items;
   const list = left.map((m, i) => `${i}. from: ${m.from} | subject: ${m.subject} | ${(m.snippet || "").slice(0, 120)}`).join("\n");
   const prompt = `Sort each email into exactly one of: ${FOLDERS.join(", ")}, Inbox.
-Inbox = a real person writing to the user personally (friends, family, a human reply). Cold sales outreach, growth-hack pitches, "saw your app" spam = Junk. Promo from a store = Promotions. Product or service system notices (support tickets, badges, 2FA) = Dev. Reply with only a JSON array like [{"i":0,"c":"Junk"}].
+Inbox = a real person writing to the user personally (friends, family, a human reply). Cold sales outreach, growth-hack pitches, "saw your app" spam = Junk. Promo from a store = Promotions. Product or service system notices (support tickets, badges, 2FA) = Dev. A short or odd subject from an individual (a marketplace buyer replying, a relative) is a person: Inbox. School, government, debt or account notices that need the user to act: Inbox. When unsure: Inbox. Reply with only a JSON array like [{"i":0,"c":"Junk"}].
 ${list}`;
   try {
     const r = await env.AI.run(LLM_MODEL, { messages: [{ role: "user", content: prompt }], max_tokens: 800 });
-    const picks = JSON.parse((String(r.response).match(/\[[\s\S]*\]/) || ["[]"])[0]);
+    // newer models hand back parsed JSON, older ones a string with the array somewhere in it
+    const picks = Array.isArray(r.response) ? r.response : JSON.parse((String(r.response).match(/\[[\s\S]*\]/) || ["[]"])[0]);
     for (const { i, c } of picks) if (left[i] && FOLDERS.includes(c)) { left[i].category = c; left[i].llm = true; }
-  } catch (e) { /* rules result stands */ }
+  } catch (e) { console.log("llm failed", String(e)); /* rules result stands */ }
   return items;
+}
+
+// ponytail: capped at 200 per call, page on the client if an inbox is bigger
+function sortItems(items) {
+  return items.slice(0, 200).map(({ id, from = "", subject = "", snippet = "" }) => {
+    const scored = scoreMessage({ from, replyTo: "", subject, snippet, listUnsubscribe: "" });
+    return { id: String(id), from, subject, snippet, ...scored, category: categorize({ from, subject, snippet, listUnsubscribe: "", isJunk: scored.isJunk }), listUnsubscribe: "", oneClick: false };
+  });
 }
 
 // ======================= dispatch =======================
 function listMessages(session) {
   if (session.provider === "demo") return demoList();
+  if (session.provider === "mac") return [];
   if (session.provider === "outlook") return outlookList(session);
   if (session.provider === "icloud") return icloudList(session);
   return gmailList(session);
@@ -601,9 +612,10 @@ export default {
     }
 
     // Demo inbox: a session that never touches Google or Apple. Nothing real can be changed.
-    if (pathname === "/auth/demo" && request.method === "POST") {
+    // Mac app reading Mail.app: the mail never leaves the Mac, only sender/subject come here to be sorted.
+    if ((pathname === "/auth/demo" || pathname === "/auth/mac") && request.method === "POST") {
       const id = crypto.randomUUID();
-      await putSession(env, id, { provider: "demo" });
+      await putSession(env, id, { provider: pathname === "/auth/mac" ? "mac" : "demo" });
       return Response.json({ token: id });
     }
 
@@ -642,6 +654,13 @@ export default {
     }
 
     // bulk: file every message into its smart folder in one pass
+    // sort mail the client already has (Mac Mail mode): same rules + LLM pass, nothing is stored
+    if (pathname === "/api/sort" && request.method === "POST") {
+      if (!(await getSession(env, sessionIdFromRequest(request)))) return new Response("not connected", { status: 401 });
+      const { items = [] } = await request.json();
+      return Response.json(await llmRefine(env, sortItems(items)));
+    }
+
     if (pathname === "/api/organize" && request.method === "POST") {
       const id = sessionIdFromRequest(request);
       let session = await getSession(env, id);

@@ -114,6 +114,15 @@ console.log('iCloud smart folders: ok');
   const out = await ctx.llmRefine(ai('sure: [{"i":0,"c":"Junk"},{"i":1,"c":"Bogus"}]'), mk());
   assert.deepEqual(out.map(m => m.category), ['Junk', 'Dev', 'Inbox']);
   assert.deepEqual((await ctx.llmRefine(ai('nonsense'), mk())).map(m => m.category), ['Inbox', 'Dev', 'Inbox']);
+  assert.deepEqual((await ctx.llmRefine(ai([{ i: 1, c: 'Promotions' }]), mk())).map(m => m.category), ['Inbox', 'Dev', 'Promotions']);
   assert.deepEqual((await ctx.llmRefine({}, mk())).map(m => m.category), ['Inbox', 'Dev', 'Inbox']);
 }
 console.log('llm pass: ok');
+
+// Mac Mail mode: sortItems scores and files client-side mail the same way
+{
+  const ctx = runInNewContext(source + '\n;({ sortItems });');
+  const out = ctx.sortItems([{ id: 1, from: 'GitHub <n@github.com>', subject: 'Run failed' }, { id: 'b', from: 'Mom <m@shaw.ca>', subject: 'dinner' }]);
+  assert.deepEqual(out.map(m => [m.id, m.category]), [['1', 'Dev'], ['b', 'Inbox']]);
+}
+console.log('mac sort: ok');

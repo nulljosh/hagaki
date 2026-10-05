@@ -26,6 +26,9 @@ struct Message: Codable, Identifiable, Equatable {
 /// Seven boxes, like the seven red boxes on a Japanese postcard.
 let smartFolders = ["Receipts", "Travel", "Dev", "Newsletters", "Social", "Promotions", "Junk"]
 
+/// Mail the app read itself, sent to /api/sort with no body text.
+struct MailItem: Codable { let id: String; let from: String; let subject: String }
+
 enum Action: String { case archive, delete, unsubscribe, organize }
 
 func senderDomain(_ from: String) -> String {
@@ -78,6 +81,14 @@ struct API {
         try check(response, data)
     }
 
+    /// Sorts mail the app read itself (Mail.app), same rules and AI pass as the server's own inboxes.
+    func sort(_ items: [MailItem]) async throws -> [Message] {
+        struct Body: Encodable { let items: [MailItem] }
+        let (data, response) = try await session.data(for: request("api/sort", method: "POST", body: try JSONEncoder().encode(Body(items: items))))
+        try check(response, data)
+        return try JSONDecoder().decode([Message].self, from: data)
+    }
+
     /// Files every message that has a smart folder, in one pass. Nothing is deleted.
     func organize(_ messages: [Message]) async throws -> OrganizeResult {
         struct Item: Encodable { let messageId: String; let category: String }
@@ -98,6 +109,7 @@ struct API {
 
 enum Auth {
     static func demo() async throws -> String { try await token("auth/demo", body: nil) }
+    static func mac() async throws -> String { try await token("auth/mac", body: nil) }
 
     static func icloud(email: String, appPassword: String) async throws -> String {
         try await token("auth/icloud", body: ["email": email, "appPassword": appPassword])

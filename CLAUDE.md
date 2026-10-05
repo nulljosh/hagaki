@@ -34,6 +34,6 @@ npx wrangler deploy
 ## Real-mail test, 2026-10-04
 Ran `scoreMessage` + `categorize` over Joshua's Mail.app inboxes (iCloud 21, Gmail "Ja" 9; sender + subject only, Mail.app's Envelope Index has no snippet or unsubscribe header).
 - Rules missed Apple review/TestFlight/Twilio/GitGuardian/Apify mail, Stripe webhook alerts, "order has been received" and Gumroad letters. Fixed in `DEV`, `DEV_WORDS`, `RECEIPT`, `LETTER_SITES`, with asserts in `test.js`.
-- Added `llmRefine`: one Workers AI call (`@cf/meta/llama-3.1-8b-instruct`, `[ai]` binding) re-sorts whatever the rules leave in Inbox, fails open. Cold "saw your app" outreach goes to Junk there, since the spam score never fires on it.
+- Added `llmRefine`: one Workers AI call (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`, `[ai]` binding) re-sorts whatever the rules leave in Inbox, fails open. Cold "saw your app" outreach goes to Junk there, since the spam score never fires on it.
 - After the fixes: iCloud 15 of 21 filed, Ja 5 of 9; everything left is a person, school or a collections notice.
 - Filed for real in Mail.app via AppleScript into `Hagaki/<Folder>`. Gotcha: `mailbox "Hagaki/Dev"` does not resolve, use `mailbox "Dev" of mailbox "Hagaki"`, and re-query each message (move invalidates the list).

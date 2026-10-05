@@ -29,6 +29,13 @@ struct SignInView: View {
                             .disabled(email.isEmpty || appPassword.isEmpty)
                     }
                 }
+                #if os(macOS) && DEBUG
+                Section {
+                    Button("Use Mail on this Mac") { Task { await session.macMail() } }
+                } footer: {
+                    Text("Reads every non-Gmail account in Mail.app. Only sender and subject leave the Mac.")
+                }
+                #endif
                 Section {
                     Button("Try the demo inbox") { Task { await session.demo() } }
                 } footer: {

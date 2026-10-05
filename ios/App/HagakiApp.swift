@@ -14,6 +14,9 @@ struct HagakiApp: App {
             .task {
                 // `-hagakiDemo` opens straight into the sample inbox, so screenshots need no taps.
                 if CommandLine.arguments.contains("-hagakiDemo"), session.token == nil { await session.demo() }
+                #if os(macOS) && DEBUG
+                if CommandLine.arguments.contains("-hagakiClear"), !session.isMacMail { await session.macMail() }
+                #endif
             }
         }
         #if os(macOS)

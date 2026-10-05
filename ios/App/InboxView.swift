@@ -41,8 +41,12 @@ struct InboxView: View {
             .refreshable { await load() }
             .navigationTitle("Inbox")
             .toolbar {
-                Button(filing ? "Filing..." : "File everything") { Task { await fileAll() } }
-                    .disabled(filable.isEmpty || filing)
+                Button(filing ? "Clearing..." : "Clear inbox") { Task { session.isMacMail ? await clearMacMail() : await clearAll() } }
+                    .disabled(messages.isEmpty || filing)
+                if !session.isMacMail {
+                    Button(filing ? "Filing..." : "File everything") { Task { await fileAll() } }
+                        .disabled(filable.isEmpty || filing)
+                }
                 Menu {
                     Button("Refresh") { Task { await load() } }
                     Button("Sign out", role: .destructive) { session.signOut() }
@@ -83,7 +87,18 @@ struct InboxView: View {
 
     private func load() async {
         guard let api = session.api else { return }
-        do { messages = try await api.messages(); error = nil } catch {
+        do {
+            #if os(macOS) && DEBUG
+            if session.isMacMail {
+                let items = try MacMail.inbox()
+                messages = items.isEmpty ? [] : try await api.sort(items)
+                error = nil; loaded = true
+                if CommandLine.arguments.contains("-hagakiClear") { await clearMacMail() }
+                return
+            }
+            #endif
+            messages = try await api.messages(); error = nil
+        } catch {
             self.error = error.localizedDescription
             if error.localizedDescription.hasPrefix("Session expired") { session.signOut() }
         }
@@ -100,6 +115,26 @@ struct InboxView: View {
             note = "Filed \(result.total) into \(filedFolders.count) boxes\(result.failed > 0 ? ", \(result.failed) failed" : ""). Nothing was deleted."
             error = nil
         } catch { self.error = error.localizedDescription }
+    }
+
+    /// Inbox zero: file what has a box, archive the people. Nothing is deleted.
+    private func clearAll() async {
+        await fileAll()
+        for m in staying { await run(.archive, m) }
+        if error == nil { note = "Inbox cleared. Machine mail is in its box, people are in your archive. Nothing was deleted." }
+    }
+
+    /// Mail.app mode: machine mail into its Hagaki box, people into Archive. Inbox zero, nothing deleted.
+    private func clearMacMail() async {
+        #if os(macOS) && DEBUG
+        filing = true; defer { filing = false }
+        do {
+            let moved = try MacMail.clear(messages)
+            note = "Cleared \(moved) of \(messages.count). People went to Archive, the rest to their Hagaki box. Nothing was deleted."
+            messages = try await session.api?.sort(MacMail.inbox()) ?? []
+            error = nil
+        } catch { self.error = error.localizedDescription }
+        #endif
     }
 
     private func run(_ action: Action, _ m: Message) async {
